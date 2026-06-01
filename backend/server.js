@@ -1,0 +1,24 @@
+'use strict';
+
+require('dotenv').config();
+const app = require('./src/app');
+const pool = require('./src/config/db');
+
+const PORT = process.env.PORT || 3000;
+
+async function start() {
+  try {
+    await pool.query('SELECT 1');
+    console.log('[DB] PostgreSQL connected successfully');
+
+    app.listen(PORT, () => {
+      console.log(`[SERVER] ClothTrack API running on http://localhost:${PORT}`);
+      console.log(`[SERVER] Environment: ${process.env.NODE_ENV || 'development'}`);
+    });
+  } catch (err) {
+    console.error('[DB] Failed to connect to PostgreSQL:', err.message);
+    process.exit(1);
+  }
+}
+
+start();

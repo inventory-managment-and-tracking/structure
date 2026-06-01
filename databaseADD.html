@@ -1,0 +1,585 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
+    <title>ClothTrack | Database Design Plan</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            background: #f5f2ec;
+            font-family: 'Inter', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+            color: #1a1512;
+            line-height: 1.4;
+        }
+
+        .container {
+            max-width: 1100px;
+            margin: 0 auto;
+            padding: 28px 20px 48px;
+        }
+
+        /* header block */
+        .hero {
+            background: #1A1512;
+            border-radius: 24px;
+            padding: 28px 32px;
+            margin-bottom: 32px;
+            box-shadow: 0 8px 20px rgba(0,0,0,0.08);
+        }
+
+        .badge {
+            font-size: 12px;
+            font-weight: 700;
+            letter-spacing: 0.15em;
+            color: #C9A84C;
+            text-transform: uppercase;
+            margin-bottom: 8px;
+        }
+
+        .hero h1 {
+            font-size: 32px;
+            font-weight: 700;
+            color: #FBF8F2;
+            margin: 0 0 8px 0;
+            letter-spacing: -0.3px;
+        }
+
+        .hero p {
+            color: #A89880;
+            font-size: 15px;
+            margin: 0;
+        }
+
+        /* tabs */
+        .tabs {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+            margin-bottom: 28px;
+        }
+
+        .tab-btn {
+            background: white;
+            border: 1.5px solid #DDD2BB;
+            border-radius: 40px;
+            padding: 8px 24px;
+            font-weight: 600;
+            font-size: 14px;
+            color: #5A4A3A;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            font-family: inherit;
+        }
+
+        .tab-btn.active {
+            background: #C9A84C;
+            border-color: #C9A84C;
+            color: #1A1512;
+            box-shadow: 0 2px 6px rgba(0,0,0,0.05);
+        }
+
+        /* sections */
+        .section-card {
+            background: transparent;
+        }
+
+        /* table blocks */
+        .table-block {
+            margin-bottom: 14px;
+            border-radius: 16px;
+            overflow: hidden;
+            border: 1.5px solid;
+            transition: all 0.1s;
+        }
+
+        .table-header {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 14px 20px;
+            cursor: pointer;
+            background: inherit;
+        }
+
+        .table-icon {
+            font-size: 24px;
+        }
+
+        .table-title {
+            flex: 1;
+        }
+
+        .table-name {
+            font-weight: 800;
+            font-size: 17px;
+            font-family: 'SF Mono', 'Fira Code', monospace;
+            letter-spacing: -0.2px;
+        }
+
+        .table-purpose {
+            font-size: 12px;
+            opacity: 0.8;
+            margin-top: 3px;
+        }
+
+        .field-count {
+            font-size: 11px;
+            font-weight: 700;
+            padding: 4px 12px;
+            border-radius: 30px;
+            background: rgba(0,0,0,0.1);
+            color: white;
+        }
+
+        .expand-icon {
+            font-size: 18px;
+            font-weight: 600;
+        }
+
+        .feature-tag {
+            padding: 6px 20px;
+            background: rgba(0,0,0,0.04);
+            border-top: 1px solid rgba(0,0,0,0.05);
+            font-size: 11px;
+            font-weight: 700;
+            letter-spacing: 0.3px;
+            text-transform: uppercase;
+        }
+
+        .fields-table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 13px;
+        }
+
+        .fields-table th {
+            text-align: left;
+            padding: 10px 20px;
+            background: #F0EAD8;
+            color: #4a3e2e;
+            font-weight: 600;
+        }
+
+        .fields-table td {
+            padding: 9px 20px;
+            border-bottom: 1px solid #EDE5D5;
+        }
+
+        .fields-table tr:last-child td {
+            border-bottom: none;
+        }
+
+        .mono {
+            font-family: 'SF Mono', 'Fira Code', monospace;
+            font-size: 12px;
+        }
+
+        .relation-table, .feature-list {
+            width: 100%;
+            border-collapse: collapse;
+            background: white;
+            border-radius: 20px;
+            overflow: hidden;
+            box-shadow: 0 1px 2px rgba(0,0,0,0.03);
+        }
+
+        .relation-table th {
+            background: #1A1512;
+            color: #C9A84C;
+            padding: 14px 18px;
+            text-align: left;
+            font-weight: 600;
+        }
+
+        .relation-table td {
+            padding: 12px 18px;
+            border-bottom: 1px solid #EDE5D5;
+        }
+
+        .pill {
+            padding: 4px 12px;
+            border-radius: 40px;
+            font-weight: 700;
+            font-size: 12px;
+            display: inline-block;
+            font-family: monospace;
+        }
+
+        .insight-card {
+            background: #FBF8F2;
+            border-radius: 16px;
+            padding: 18px 24px;
+            margin-top: 28px;
+            border: 1px solid #DDD2BB;
+        }
+
+        .scenario-step {
+            display: flex;
+            gap: 18px;
+            margin-bottom: 24px;
+        }
+
+        .step-badge {
+            width: 44px;
+            height: 44px;
+            background: #D85A30;
+            border-radius: 60px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 800;
+            font-size: 20px;
+            color: white;
+            flex-shrink: 0;
+        }
+
+        .scenario-content {
+            flex: 1;
+            background: white;
+            border-radius: 20px;
+            padding: 16px 22px;
+            border: 1px solid #e9e0d2;
+        }
+
+        .code-block {
+            background: #1A1512;
+            border-radius: 12px;
+            padding: 12px 18px;
+            margin-top: 12px;
+            font-family: monospace;
+            font-size: 12px;
+            color: #D4C9B8;
+            overflow-x: auto;
+        }
+
+        hr {
+            margin: 20px 0;
+            border: none;
+            border-top: 1px solid #DDD2BB;
+        }
+
+        .footer-note {
+            margin-top: 40px;
+            background: #F0EAD8;
+            padding: 16px 24px;
+            border-radius: 20px;
+            border-left: 5px solid #C9A84C;
+            font-size: 13px;
+            color: #4e4438;
+        }
+
+        @media (max-width: 680px) {
+            .container { padding: 20px 16px; }
+            .hero { padding: 22px 20px; }
+            .fields-table th, .fields-table td { padding: 8px 12px; }
+        }
+    </style>
+</head>
+<body>
+<div class="container">
+    <div class="hero">
+        <div class="badge">ClothTrack — Standard Package</div>
+        <h1>📐 Database Design Plan</h1>
+        <p>10 tables · Full QR flow · Staff logins · Stock history · Alerts · Reports · Returns</p>
+    </div>
+
+    <div class="tabs" id="tabBar">
+        <button class="tab-btn active" data-tab="tables">📋 Tables</button>
+        <button class="tab-btn" data-tab="relations">🔗 Relations</button>
+        <button class="tab-btn" data-tab="features">✅ Feature Map</button>
+        <button class="tab-btn" data-tab="scenario">🎬 Live Scenario</button>
+    </div>
+
+    <div id="tablesView" class="section-card"></div>
+    <div id="relationsView" class="section-card" style="display:none;"></div>
+    <div id="featuresView" class="section-card" style="display:none;"></div>
+    <div id="scenarioView" class="section-card" style="display:none;"></div>
+
+    <div class="footer-note">
+        <strong>📌 Database engine recommendation:</strong> MySQL 8 or PostgreSQL 15 — both support all data types above. For a web app serving 1–5 staff simultaneously, either works perfectly.<br>
+        🔍 <strong>Indexing tip:</strong> add indexes on <code>products.sku</code>, <code>stock_movements.product_id</code>, <code>sales.created_at</code>, <code>returns.sale_id</code> for fast QR lookup and report queries.
+    </div>
+</div>
+
+<script>
+    // ---------- DATA (from react component, adapted) ----------
+    const COLORS = {
+        teal: { bg: "#E1F5EE", border: "#0F6E56", text: "#085041", badge: "#1D9E75" },
+        purple: { bg: "#EEEDFE", border: "#534AB7", text: "#3C3489", badge: "#7F77DD" },
+        amber: { bg: "#FAEEDA", border: "#854F0B", text: "#633806", badge: "#BA7517" },
+        coral: { bg: "#FAECE7", border: "#993C1D", text: "#712B13", badge: "#D85A30" },
+        blue: { bg: "#E6F1FB", border: "#185FA5", text: "#0C447C", badge: "#378ADD" },
+        gray: { bg: "#F1EFE8", border: "#5F5E5A", text: "#444441", badge: "#888780" },
+    };
+
+    const tables = [
+        { name: "users", color: "purple", icon: "👤", purpose: "Staff logins — every employee gets a unique account", feature: "Staff user logins", fields: [
+            { name: "id", type: "INT PK AI", note: "Auto-increment primary key" },
+            { name: "full_name", type: "VARCHAR(100)", note: "Employee's full name" },
+            { name: "username", type: "VARCHAR(50) UNIQUE", note: "Login username" },
+            { name: "password_hash", type: "VARCHAR(255)", note: "bcrypt hashed password" },
+            { name: "role", type: "ENUM('owner','manager','cashier')", note: "Controls access level" },
+            { name: "is_active", type: "BOOLEAN DEFAULT 1", note: "Disable without deleting" },
+            { name: "created_at", type: "TIMESTAMP DEFAULT NOW()", note: "" },
+            { name: "last_login", type: "TIMESTAMP NULL", note: "Track last activity" }
+        ] },
+        { name: "categories", color: "amber", icon: "🏷️", purpose: "Organise clothes into types (shirts, jeans, dresses…)", feature: "Product catalog management", fields: [
+            { name: "id", type: "INT PK AI", note: "" }, { name: "name", type: "VARCHAR(100)", note: "e.g. 'Shirts', 'Jeans'" },
+            { name: "description", type: "TEXT NULL", note: "" }, { name: "created_at", type: "TIMESTAMP DEFAULT NOW()", note: "" }
+        ] },
+        { name: "suppliers", color: "coral", icon: "🏭", purpose: "Track who supplied each product — reorder from the right supplier", feature: "Supplier tracking", fields: [
+            { name: "id", type: "INT PK AI", note: "" }, { name: "name", type: "VARCHAR(150)", note: "Supplier company or person name" },
+            { name: "phone", type: "VARCHAR(20) NULL", note: "" }, { name: "email", type: "VARCHAR(100) NULL", note: "" },
+            { name: "address", type: "TEXT NULL", note: "" }, { name: "notes", type: "TEXT NULL", note: "Free notes about the supplier" },
+            { name: "created_at", type: "TIMESTAMP DEFAULT NOW()", note: "" }
+        ] },
+        { name: "products", color: "teal", icon: "👗", purpose: "Every clothing item registered in the system — the core table", feature: "Product catalog + QR label printing", fields: [
+            { name: "id", type: "INT PK AI", note: "" }, { name: "name", type: "VARCHAR(150)", note: "e.g. 'Men's Blue Denim Jacket'" },
+            { name: "sku", type: "VARCHAR(50) UNIQUE", note: "Auto-generated or manual code" }, { name: "category_id", type: "INT FK → categories.id", note: "" },
+            { name: "supplier_id", type: "INT FK → suppliers.id NULL", note: "" }, { name: "size", type: "VARCHAR(20) NULL", note: "S, M, L, XL, 32, etc." },
+            { name: "color", type: "VARCHAR(50) NULL", note: "" }, { name: "unit_price", type: "DECIMAL(10,2)", note: "Selling price" },
+            { name: "cost_price", type: "DECIMAL(10,2) NULL", note: "What you paid supplier" }, { name: "quantity", type: "INT DEFAULT 0", note: "Current stock level" },
+            { name: "low_stock_threshold", type: "INT DEFAULT 5", note: "Alert fires below this" }, { name: "qr_code", type: "VARCHAR(255) NULL", note: "Generated QR/barcode data" },
+            { name: "qr_printed_at", type: "TIMESTAMP NULL", note: "When label was last printed" }, { name: "description", type: "TEXT NULL", note: "" },
+            { name: "is_active", type: "BOOLEAN DEFAULT 1", note: "Soft delete" }, { name: "created_by", type: "INT FK → users.id", note: "" },
+            { name: "created_at", type: "TIMESTAMP DEFAULT NOW()", note: "" }, { name: "updated_at", type: "TIMESTAMP ON UPDATE NOW()", note: "" }
+        ] },
+        { name: "stock_movements", color: "blue", icon: "📦", purpose: "Every stock change ever — the full history log of every in/out", feature: "Full stock history log + Stock in & out tracking", fields: [
+            { name: "id", type: "INT PK AI", note: "" }, { name: "product_id", type: "INT FK → products.id", note: "" },
+            { name: "movement_type", type: "ENUM('stock_in','sale','adjustment','return','damaged')", note: "" }, { name: "quantity_change", type: "INT", note: "+ve = stock added, -ve = stock removed" },
+            { name: "quantity_before", type: "INT", note: "Snapshot for audit trail" }, { name: "quantity_after", type: "INT", note: "Snapshot for audit trail" },
+            { name: "unit_price", type: "DECIMAL(10,2) NULL", note: "Price at time of movement" }, { name: "sale_id", type: "INT FK → sales.id NULL", note: "Set when type='sale'" }, { name: "return_id", type: "INT FK → returns.id NULL", note: "Set when type='return'" },
+            { name: "notes", type: "TEXT NULL", note: "Reason for manual adjustment" }, { name: "performed_by", type: "INT FK → users.id", note: "Which employee did this" },
+            { name: "created_at", type: "TIMESTAMP DEFAULT NOW()", note: "" }
+        ] },
+        { name: "sales", color: "teal", icon: "🛒", purpose: "A sale transaction — one record per checkout session", feature: "Stock out tracking + Detailed reports", fields: [
+            { name: "id", type: "INT PK AI", note: "" }, { name: "sale_code", type: "VARCHAR(30) UNIQUE", note: "e.g. SALE-20250525-001" },
+            { name: "sold_by", type: "INT FK → users.id", note: "The cashier who made the sale" }, { name: "total_amount", type: "DECIMAL(10,2)", note: "Sum of all items" },
+            { name: "payment_method", type: "ENUM('cash','card','mobile_money','other')", note: "" }, { name: "notes", type: "TEXT NULL", note: "" },
+            { name: "created_at", type: "TIMESTAMP DEFAULT NOW()", note: "" }
+        ] },
+        { name: "sale_items", color: "teal", icon: "🏷️", purpose: "Each product line within a sale — one sale can have many items", feature: "Detailed reports by product", fields: [
+            { name: "id", type: "INT PK AI", note: "" }, { name: "sale_id", type: "INT FK → sales.id", note: "" }, { name: "product_id", type: "INT FK → products.id", note: "" },
+            { name: "quantity", type: "INT", note: "" }, { name: "unit_price", type: "DECIMAL(10,2)", note: "Price at time of sale (snapshot)" },
+            { name: "subtotal", type: "DECIMAL(10,2)", note: "quantity × unit_price" }
+        ] },
+        { name: "returns", color: "coral", icon: "↩️", purpose: "Tracks every customer return — reason, condition, refund type, and link to original sale", feature: "Returns management", fields: [
+            { name: "id", type: "INT PK AI", note: "" },
+            { name: "return_code", type: "VARCHAR(30) UNIQUE", note: "e.g. RET-20250525-001" },
+            { name: "sale_id", type: "INT FK → sales.id NULL", note: "Original sale if known" },
+            { name: "product_id", type: "INT FK → products.id", note: "" },
+            { name: "quantity", type: "INT", note: "Number of items returned" },
+            { name: "reason", type: "ENUM('wrong_size','defective','changed_mind','other')", note: "Why the customer returned it" },
+            { name: "condition", type: "ENUM('resellable','damaged','missing_tags')", note: "Determines if item goes back to stock" },
+            { name: "refund_type", type: "ENUM('cash','store_credit','exchange')", note: "" },
+            { name: "refund_amount", type: "DECIMAL(10,2) NULL", note: "Amount refunded to customer" },
+            { name: "processed_by", type: "INT FK → users.id", note: "Staff who handled the return" },
+            { name: "notes", type: "TEXT NULL", note: "" },
+            { name: "created_at", type: "TIMESTAMP DEFAULT NOW()", note: "" }
+        ] },
+        { name: "low_stock_alerts", color: "amber", icon: "🔔", purpose: "System logs when a product dips below its threshold — drives the alert panel", feature: "Low-stock alerts", fields: [
+            { name: "id", type: "INT PK AI", note: "" }, { name: "product_id", type: "INT FK → products.id", note: "" }, { name: "quantity_at_alert", type: "INT", note: "Stock level when alert fired" },
+            { name: "threshold", type: "INT", note: "Threshold value at that time" }, { name: "is_resolved", type: "BOOLEAN DEFAULT 0", note: "Mark resolved after restock" },
+            { name: "alerted_at", type: "TIMESTAMP DEFAULT NOW()", note: "" }, { name: "resolved_at", type: "TIMESTAMP NULL", note: "" }
+        ] },
+        { name: "qr_print_log", color: "gray", icon: "🖨️", purpose: "Tracks every time a QR / barcode label is printed and who printed it", feature: "QR & barcode label printing", fields: [
+            { name: "id", type: "INT PK AI", note: "" }, { name: "product_id", type: "INT FK → products.id", note: "" }, { name: "printed_by", type: "INT FK → users.id", note: "" },
+            { name: "copies", type: "INT DEFAULT 1", note: "How many labels printed" }, { name: "print_method", type: "ENUM('qr','barcode')", note: "" },
+            { name: "printed_at", type: "TIMESTAMP DEFAULT NOW()", note: "" }
+        ] }
+    ];
+
+    const relations = [
+        { from: "products", to: "categories", label: "belongs to", type: "N:1" }, { from: "products", to: "suppliers", label: "supplied by", type: "N:1" },
+        { from: "products", to: "users", label: "created by", type: "N:1" }, { from: "stock_movements", to: "products", label: "tracks", type: "N:1" },
+        { from: "stock_movements", to: "users", label: "performed by", type: "N:1" }, { from: "sales", to: "users", label: "sold by", type: "N:1" },
+        { from: "sale_items", to: "sales", label: "belongs to", type: "N:1" }, { from: "sale_items", to: "products", label: "refers to", type: "N:1" },
+        { from: "low_stock_alerts", to: "products", label: "triggered by", type: "N:1" },
+        { from: "returns", to: "sales", label: "linked to original", type: "N:1" },
+        { from: "returns", to: "products", label: "for product", type: "N:1" },
+        { from: "returns", to: "users", label: "processed by", type: "N:1" },
+        { from: "stock_movements", to: "returns", label: "triggered by", type: "N:1" }, { from: "qr_print_log", to: "products", label: "for product", type: "N:1" },
+        { from: "qr_print_log", to: "users", label: "printed by", type: "N:1" }
+    ];
+
+    const features = [
+        { label: "Returns management", tables: ["returns", "stock_movements", "sales"] },
+        { label: "QR & barcode label printing", tables: ["products", "qr_print_log"] }, { label: "Staff user logins", tables: ["users"] },
+        { label: "Low-stock alerts", tables: ["products", "low_stock_alerts"] }, { label: "Supplier tracking", tables: ["suppliers", "products"] },
+        { label: "Full stock history log", tables: ["stock_movements"] }, { label: "Detailed reports", tables: ["sales", "sale_items", "stock_movements", "users"] },
+        { label: "Product catalog management", tables: ["products", "categories"] }, { label: "Stock in & out tracking", tables: ["stock_movements"] },
+        { label: "Manual stock adjustment", tables: ["stock_movements"] }, { label: "Basic product search", tables: ["products"] }
+    ];
+
+    const scenario = [
+        { step: "1", actor: "Owner / Manager", title: "Register a new clothing item", color: "purple", icon: "👗", desc: "Manager opens the web app → clicks 'Add Product' → fills in name, size, color, price, category, supplier, and sets a low-stock threshold (e.g. 5 units).", db: "INSERT into products. INSERT into stock_movements (type='stock_in'). System auto-generates a unique SKU and QR data." },
+        { step: "2", actor: "Manager / Staff", title: "Print the QR label", color: "amber", icon: "🖨️", desc: "Clicks 'Print QR Label'. The browser generates the QR code image from the product SKU and sends it to a label printer. A sticker is physically attached to the clothing item or its hanger.", db: "INSERT into qr_print_log. UPDATE products.qr_printed_at." },
+        { step: "3", actor: "Customer / Cashier", title: "Customer selects item — cashier scans QR", color: "teal", icon: "📲", desc: "Customer brings item to the counter. Cashier opens the POS screen on the website, points their phone camera (or USB scanner) at the QR code. The product is instantly recognised — no typing needed.", db: "SELECT products WHERE sku = scanned_value. Populates the cart." },
+        { step: "4", actor: "Cashier", title: "Complete the sale", color: "teal", icon: "🛒", desc: "Cashier confirms quantity and clicks 'Confirm Sale'. System deducts from stock, records who made the sale, and prints a receipt.", db: "INSERT into sales. INSERT into sale_items. INSERT into stock_movements (type='sale', quantity_change=-N). UPDATE products.quantity." },
+        { step: "5", actor: "System (automatic)", title: "Low-stock alert fires", color: "amber", icon: "🔔", desc: "After the quantity update, the system checks: is products.quantity ≤ low_stock_threshold? If yes, an alert banner appears on the dashboard for the manager — 'Only 3 Blue Denim Jackets left!'", db: "INSERT into low_stock_alerts. Dashboard query: SELECT products WHERE quantity ≤ low_stock_threshold AND is_resolved=0." },
+        { step: "6", actor: "Manager", title: "Restock — new items arrive", color: "coral", icon: "📦", desc: "Manager receives a new delivery from the supplier. Opens the product page, clicks 'Add Stock', enters the quantity received. The alert is automatically resolved.", db: "UPDATE products.quantity += N. INSERT into stock_movements (type='stock_in'). UPDATE low_stock_alerts SET is_resolved=1." },
+        { step: "7", actor: "Owner", title: "Generate reports", color: "blue", icon: "📊", desc: "Owner opens Reports. Can see: sales by day / by employee / by product, stock history, who made each change, which supplier provided each item. Full audit trail.", db: "SELECT queries across sales, sale_items, stock_movements, users, products with JOIN and GROUP BY date/employee/product." }
+    ];
+
+    // rendering helpers
+    function renderTables(expandedTable = null) {
+        return tables.map(tbl => {
+            const c = COLORS[tbl.color];
+            const open = expandedTable === tbl.name;
+            return `
+                <div class="table-block" style="border-color: ${c.border}; background: white;">
+                    <div class="table-header" style="background: ${c.bg};" data-table-name="${tbl.name}">
+                        <div class="table-icon">${tbl.icon}</div>
+                        <div class="table-title">
+                            <div class="table-name" style="color: ${c.text};">${tbl.name}</div>
+                            <div class="table-purpose" style="color: ${c.text};">${tbl.purpose}</div>
+                        </div>
+                        <span class="field-count" style="background: ${c.badge};">${tbl.fields.length} fields</span>
+                        <span class="expand-icon" style="color: ${c.text};">${open ? "▲" : "▼"}</span>
+                    </div>
+                    ${open ? `
+                        <div class="feature-tag" style="color: ${c.badge}; border-top-color: ${c.border}30;">✅ Standard Feature: ${tbl.feature}</div>
+                        <table class="fields-table">
+                            <thead><tr><th>Column</th><th>Type</th><th>Note</th></tr></thead>
+                            <tbody>
+                                ${tbl.fields.map(f => `<tr><td class="mono" style="font-weight:600; color:${c.text};">${f.name}</td><td class="mono" style="color:#6c5a48;">${f.type}</td><td style="color:#806e58;">${f.note || "—"}</td></tr>`).join('')}
+                            </tbody>
+                        </table>
+                    ` : ''}
+                </div>
+            `;
+        }).join('');
+    }
+
+    function renderRelations() {
+        return `
+            <p style="font-size:14px; color:#6B5A4A; margin-bottom:20px;">How the tables connect to each other. Every FK (foreign key) relationship listed.</p>
+            <div style="overflow-x:auto;">
+                <table class="relation-table">
+                    <thead><tr><th>From Table</th><th>Relationship</th><th>To Table</th><th>Type</th></tr></thead>
+                    <tbody>
+                        ${relations.map((r, i) => {
+                            const fromColor = tables.find(t => t.name === r.from)?.color || "gray";
+                            const toColor = tables.find(t => t.name === r.to)?.color || "gray";
+                            return `
+                                <tr style="background: ${i % 2 === 0 ? 'white' : '#FBF8F2'};">
+                                    <td><span class="pill" style="background:${COLORS[fromColor].bg}; color:${COLORS[fromColor].text};">${r.from}</span></td>
+                                    <td style="color:#7a6b5a;">→ ${r.label}</td>
+                                    <td><span class="pill" style="background:${COLORS[toColor].bg}; color:${COLORS[toColor].text};">${r.to}</span></td>
+                                    <td><span style="background:#F0EAD8; padding:2px 12px; border-radius:20px; font-size:12px; font-weight:700;">${r.type}</span></td>
+                                </tr>
+                            `;
+                        }).join('')}
+                    </tbody>
+                </table>
+            </div>
+            <div class="insight-card">
+                <div style="font-weight:700; margin-bottom:8px;">🔧 Key design decisions</div>
+                <ul style="margin-left:20px; line-height:1.7; font-size:13px; color:#5A4A3A;">
+                    <li><strong>stock_movements never deletes data</strong> — permanent audit log.</li>
+                    <li><strong>sale_items stores unit_price as a snapshot</strong> — historical accuracy.</li>
+                    <li><strong>products.quantity</strong> live running total for performance.</li>
+                    <li><strong>users.role</strong> drives UI access levels.</li>
+                </ul>
+            </div>
+        `;
+    }
+
+    function renderFeatures() {
+        return `
+            <p style="font-size:14px; color:#6B5A4A; margin-bottom:20px;">Every Standard package promise mapped to the tables that power it.</p>
+            ${features.map(f => `
+                <div style="margin-bottom:12px; padding:14px 18px; background:white; border-radius:16px; border:1.5px solid #DDD2BB; display:flex; align-items:center; gap:16px; flex-wrap:wrap;">
+                    <span style="background:#2D6A4F; color:white; border-radius:30px; padding:4px 16px; font-size:13px; font-weight:700;">✓ ${f.label}</span>
+                    <div style="display:flex; gap:8px; flex-wrap:wrap;">
+                        ${f.tables.map(tbl => {
+                            const tc = tables.find(t => t.name === tbl)?.color || "gray";
+                            const c = COLORS[tc];
+                            return `<span style="background:${c.bg}; color:${c.text}; border:1px solid ${c.border}66; padding:3px 12px; border-radius:30px; font-family:monospace; font-weight:600; font-size:12px;">${tbl}</span>`;
+                        }).join('')}
+                    </div>
+                </div>
+            `).join('')}
+            <div style="background:#1A1512; border-radius:16px; padding:20px 24px; margin-top:8px;">
+                <div style="color:#C9A84C; font-weight:700;">🎯 All 10 Standard features are fully covered</div>
+                <div style="color:#A89880; font-size:13px; margin-top:8px;">The 10 tables above collectively fulfill every promise listed in the Standard package (ETB 70,000) including everything from the Starter package.</div>
+            </div>
+        `;
+    }
+
+    function renderScenario() {
+        return `
+            <p style="font-size:14px; color:#6B5A4A; margin-bottom:20px;">A complete day-in-the-life walkthrough of how the system behaves once built, driven entirely by these 9 tables.</p>
+            ${scenario.map((s, idx) => {
+                const c = COLORS[s.color];
+                return `
+                    <div class="scenario-step">
+                        <div class="step-badge" style="background:${c.badge};">${s.step}</div>
+                        <div class="scenario-content" style="border-color:${c.border}30; background:${c.bg}20;">
+                            <div style="display:flex; align-items:center; gap:8px; margin-bottom:8px;">
+                                <span style="font-size:22px;">${s.icon}</span>
+                                <div><div style="font-weight:800; font-size:16px; color:${c.text};">${s.title}</div><div style="font-size:11px; font-weight:700; color:${c.badge};">${s.actor}</div></div>
+                            </div>
+                            <p style="font-size:13px; color:#3D3328; margin-bottom:12px;">${s.desc}</p>
+                            <div class="code-block">
+                                <div style="font-size:10px; font-weight:700; color:#C9A84C;">📀 DATABASE OPERATIONS</div>
+                                <div style="font-family:monospace; font-size:12px;">${s.db}</div>
+                            </div>
+                        </div>
+                    </div>
+                `;
+            }).join('')}
+            <div style="background:#E1F5EE; border-radius:18px; padding:18px 20px; border-left:5px solid #0F6E56; margin-top:12px;">
+                <div style="font-weight:800; color:#085041;">📱 QR scan on mobile — how it works on the website</div>
+                <p style="font-size:13px; color:#0F6E56; margin-top:6px;">The cashier opens the POS page on any phone browser. A JavaScript QR scanner (using the phone's camera via getUserMedia) reads the QR code and sends the SKU to the server. The server queries products WHERE sku = ? and returns the product details instantly. No app download needed — it runs entirely in the browser on the website.</p>
+            </div>
+        `;
+    }
+
+    let expandedTable = null;
+    const tablesContainer = document.getElementById("tablesView");
+    const relationsContainer = document.getElementById("relationsView");
+    const featuresContainer = document.getElementById("featuresView");
+    const scenarioContainer = document.getElementById("scenarioView");
+
+    function updateTablesUI() {
+        tablesContainer.innerHTML = `<div style="margin-bottom:16px; font-size:14px; color:#6B5A4A;">Click any table to expand its fields. These 9 tables power every feature.</div>${renderTables(expandedTable)}`;
+        document.querySelectorAll('.table-header').forEach(header => {
+            header.addEventListener('click', (e) => {
+                const tblName = header.getAttribute('data-table-name');
+                if (expandedTable === tblName) expandedTable = null;
+                else expandedTable = tblName;
+                updateTablesUI();
+            });
+        });
+    }
+
+    function switchTab(tabId) {
+        document.getElementById("tablesView").style.display = 'none';
+        document.getElementById("relationsView").style.display = 'none';
+        document.getElementById("featuresView").style.display = 'none';
+        document.getElementById("scenarioView").style.display = 'none';
+        if (tabId === 'tables') { tablesContainer.style.display = 'block'; updateTablesUI(); }
+        else if (tabId === 'relations') { relationsContainer.style.display = 'block'; relationsContainer.innerHTML = renderRelations(); }
+        else if (tabId === 'features') { featuresContainer.style.display = 'block'; featuresContainer.innerHTML = renderFeatures(); }
+        else if (tabId === 'scenario') { scenarioContainer.style.display = 'block'; scenarioContainer.innerHTML = renderScenario(); }
+        document.querySelectorAll('.tab-btn').forEach(btn => {
+            if (btn.getAttribute('data-tab') === tabId) btn.classList.add('active');
+            else btn.classList.remove('active');
+        });
+    }
+
+    document.querySelectorAll('.tab-btn').forEach(btn => {
+        btn.addEventListener('click', () => switchTab(btn.getAttribute('data-tab')));
+    });
+    // initial render
+    switchTab('tables');
+</script>
+</body>
+</html>
