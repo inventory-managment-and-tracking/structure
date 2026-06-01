@@ -212,7 +212,7 @@ export default function ReportsView({ token, userRole }) {
                 </div>
                 <div style={{ width: '40%', display: 'flex', flexDirection: 'column', gap: '8px', fontSize: '12px' }}>
                   {returnsChartData.map((entry, index) => (
-                    <div key={idx} style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                    <div key={index} style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                       <div style={{ width: '12px', height: '12px', borderRadius: '3px', background: COLORS[index % COLORS.length] }} />
                       <span style={{ fontWeight: '500' }}>{entry.name}: {entry.value}</span>
                     </div>

@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import { Search, Plus, SlidersHorizontal, RefreshCw, Printer, AlertTriangle, X, Check, ArrowRightLeft } from 'lucide-react';
 
 export default function ProductList({ token, userRole, addToCart }) {
@@ -82,24 +83,41 @@ export default function ProductList({ token, userRole, addToCart }) {
     fetchData();
   }, [search, categoryFilter, sizeFilter, colorFilter]);
 
-  const handleAddProduct = async (e) => {
-    e.preventDefault();
+  const [addError, setAddError] = useState('');
+  const [isAdding, setIsAdding] = useState(false);
+
+  const handleAddProduct = async () => {
+    setAddError('');
+
+    // Manual validation for required fields
+    if (!newProduct.name.trim()) {
+      setAddError('Product name is required');
+      return;
+    }
+    if (!newProduct.unit_price || parseFloat(newProduct.unit_price) <= 0) {
+      setAddError('Retail price must be greater than 0');
+      return;
+    }
+
+    setIsAdding(true);
     try {
       const headers = {
         'Content-Type': 'application/json',
         'Authorization': `Bearer ${token}`
       };
 
-      const body = {
-        ...newProduct,
-        unit_price: parseFloat(newProduct.unit_price),
-        cost_price: newProduct.cost_price ? parseFloat(newProduct.cost_price) : undefined,
-        category_id: newProduct.category_id ? parseInt(newProduct.category_id, 10) : undefined,
-        supplier_id: newProduct.supplier_id ? parseInt(newProduct.supplier_id, 10) : undefined,
-        quantity: newProduct.quantity ? parseInt(newProduct.quantity, 10) : 0,
-        low_stock_threshold: newProduct.low_stock_threshold ? parseInt(newProduct.low_stock_threshold, 10) : 5,
-        sku: newProduct.sku || undefined
-      };
+      // Build a clean body — only include fields with actual values
+      const body = { name: newProduct.name.trim() };
+      body.unit_price = parseFloat(newProduct.unit_price);
+      if (newProduct.cost_price) body.cost_price = parseFloat(newProduct.cost_price);
+      if (newProduct.category_id) body.category_id = parseInt(newProduct.category_id, 10);
+      if (newProduct.supplier_id) body.supplier_id = parseInt(newProduct.supplier_id, 10);
+      if (newProduct.size) body.size = newProduct.size.trim();
+      if (newProduct.color) body.color = newProduct.color.trim();
+      body.quantity = newProduct.quantity ? parseInt(newProduct.quantity, 10) : 0;
+      body.low_stock_threshold = newProduct.low_stock_threshold ? parseInt(newProduct.low_stock_threshold, 10) : 5;
+      if (newProduct.sku) body.sku = newProduct.sku.trim();
+      if (newProduct.description) body.description = newProduct.description.trim();
 
       const res = await fetch('/api/products', {
         method: 'POST',
@@ -108,9 +126,16 @@ export default function ProductList({ token, userRole, addToCart }) {
       });
 
       const data = await res.json();
-      if (!data.success) throw new Error(data.message || 'Failed to create product');
+      if (!data.success) {
+        // Handle express-validator array errors
+        if (data.errors && Array.isArray(data.errors)) {
+          throw new Error(data.errors.map(e => e.msg).join(', '));
+        }
+        throw new Error(data.message || 'Failed to create product');
+      }
 
       setShowAddModal(false);
+      setAddError('');
       setNewProduct({
         name: '', unit_price: '', cost_price: '', category_id: '',
         supplier_id: '', size: '', color: '', quantity: '',
@@ -118,7 +143,10 @@ export default function ProductList({ token, userRole, addToCart }) {
       });
       fetchData();
     } catch (err) {
-      alert(err.message);
+      console.error('[ADD PRODUCT ERR]', err);
+      setAddError(err.message);
+    } finally {
+      setIsAdding(false);
     }
   };
 
@@ -331,19 +359,18 @@ export default function ProductList({ token, userRole, addToCart }) {
       </div>
 
       {/* 1. Modal: Add Product */}
-      {showAddModal && (
+      {showAddModal && createPortal(
         <div className="modal-overlay">
           <div className="modal-content bg-glass">
             <div className="modal-header">
               <h3 style={{ fontSize: '18px' }}>Register New Product</h3>
-              <button onClick={() => setShowAddModal(false)} className="modal-close-btn"><X size={18} /></button>
+              <button onClick={() => { setShowAddModal(false); setAddError(''); }} className="modal-close-btn"><X size={18} /></button>
             </div>
-            <form onSubmit={handleAddProduct} style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
               <div className="form-group">
                 <label className="form-label">Product Name *</label>
                 <input
                   type="text"
-                  required
                   placeholder="e.g. Slim Fit Denim Jeans"
                   value={newProduct.name}
                   onChange={(e) => setNewProduct({ ...newProduct, name: e.target.value })}
@@ -356,7 +383,6 @@ export default function ProductList({ token, userRole, addToCart }) {
                   <input
                     type="number"
                     step="0.01"
-                    required
                     placeholder="29.99"
                     value={newProduct.unit_price}
                     onChange={(e) => setNewProduct({ ...newProduct, unit_price: e.target.value })}
@@ -449,14 +475,28 @@ export default function ProductList({ token, userRole, addToCart }) {
                 />
               </div>
 
-              <button type="submit" className="submit-btn" style={{ marginTop: '10px' }}>Register Product</button>
-            </form>
+              {addError && (
+                <div style={{ background: 'var(--danger-glow)', color: 'var(--danger-color)', border: '1px solid var(--danger-color)', padding: '10px', borderRadius: '6px', fontSize: '12px', textAlign: 'center' }}>
+                  {addError}
+                </div>
+              )}
+
+              <button
+                type="button"
+                className="submit-btn"
+                style={{ marginTop: '10px' }}
+                disabled={isAdding}
+                onClick={handleAddProduct}
+              >
+                {isAdding ? 'Registering...' : 'Register Product'}
+              </button>
+            </div>
           </div>
         </div>
-      )}
+      , document.body)}
 
       {/* 2. Modal: Manual Stock Adjustment */}
-      {showAdjustModal && activeProduct && (
+      {showAdjustModal && activeProduct && createPortal(
         <div className="modal-overlay">
           <div className="modal-content bg-glass">
             <div className="modal-header">
@@ -492,10 +532,10 @@ export default function ProductList({ token, userRole, addToCart }) {
             </form>
           </div>
         </div>
-      )}
+      , document.body)}
 
       {/* 3. Modal: QR Preview */}
-      {showQrModal && activeProduct && generatedQr && (
+      {showQrModal && activeProduct && generatedQr && createPortal(
         <div className="modal-overlay">
           <div className="modal-content bg-glass" style={{ maxWidth: '400px', textAlign: 'center' }}>
             <div className="modal-header">
@@ -532,7 +572,7 @@ export default function ProductList({ token, userRole, addToCart }) {
             </button>
           </div>
         </div>
-      )}
+      , document.body)}
     </div>
   );
 }

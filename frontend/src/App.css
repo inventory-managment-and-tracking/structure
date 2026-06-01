@@ -878,20 +878,23 @@
   bottom: 0;
   background: rgba(0, 0, 0, 0.75);
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   justify-content: center;
   z-index: 1050;
-  padding: 20px;
+  padding: 40px 20px;
   backdrop-filter: blur(8px);
+  overflow-y: auto;
 }
 
 .modal-content {
   width: 100%;
   max-width: 520px;
+  overflow-y: visible;
   padding: 32px;
   border-radius: var(--radius-lg);
   box-shadow: var(--glass-shadow);
   animation: fadeIn 0.3s cubic-bezier(0.4, 0, 0.2, 1) both;
+  flex-shrink: 0;
 }
 
 .modal-header {
