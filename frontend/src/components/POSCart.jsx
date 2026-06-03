@@ -194,6 +194,17 @@ export default function POSCart({ cart, updateQty, removeFromCart, onCheckoutSuc
                   </select>
                 </div>
               </div>
+              {refundForm.reason === 'other' && (
+                <div className="form-group" style={{ marginBottom: 0 }}>
+                  <label className="form-label">Describe the reason</label>
+                  <input
+                    type="text"
+                    placeholder="e.g. Customer complaint, packaging issue..."
+                    value={refundForm.notes}
+                    onChange={e => setRefundForm({ ...refundForm, notes: e.target.value })}
+                  />
+                </div>
+              )}
               <div className="form-grid-2">
                 <div className="form-group" style={{ marginBottom: 0 }}>
                   <label className="form-label">Refund Type</label>
