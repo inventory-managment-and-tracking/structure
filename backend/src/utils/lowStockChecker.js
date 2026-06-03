@@ -13,9 +13,17 @@ const pool = require('../config/db');
  * @param {object} [client]         - optional pg client (for use inside transactions)
  */
 async function checkLowStock(productId, currentQuantity, threshold, client) {
-  if (currentQuantity > threshold) return;
-
   const db = client || pool;
+
+  if (currentQuantity > threshold) {
+    await db.query(
+      `UPDATE low_stock_alerts 
+       SET is_resolved = TRUE, resolved_at = NOW() 
+       WHERE product_id = $1 AND is_resolved = FALSE`,
+      [productId]
+    );
+    return;
+  }
 
   const { rows } = await db.query(
     `SELECT id FROM low_stock_alerts

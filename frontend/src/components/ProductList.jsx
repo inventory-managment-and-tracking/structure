@@ -2,12 +2,13 @@ import React, { useState, useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import { Search, Plus, SlidersHorizontal, RefreshCw, Printer, AlertTriangle, X, Check, ArrowRightLeft } from 'lucide-react';
 
-export default function ProductList({ token, userRole, addToCart }) {
+export default function ProductList({ token, userRole, addToCart, onStockAdjusted }) {
   const [products, setProducts] = useState([]);
   const [categories, setCategories] = useState([]);
   const [suppliers, setSuppliers] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+  const [toast, setToast] = useState({ show: false, message: '' });
 
   // Filters state
   const [search, setSearch] = useState('');
@@ -90,6 +91,15 @@ export default function ProductList({ token, userRole, addToCart }) {
 
   const [addError, setAddError] = useState('');
   const [isAdding, setIsAdding] = useState(false);
+
+  const handleAddToCart = (product) => {
+    addToCart(product);
+    setToast({ show: true, message: `"${product.name}" added to checkout` });
+    if (window.toastTimeout) clearTimeout(window.toastTimeout);
+    window.toastTimeout = setTimeout(() => {
+      setToast({ show: false, message: '' });
+    }, 2500);
+  };
 
   const handleAddProduct = async () => {
     setAddError('');
@@ -322,12 +332,12 @@ export default function ProductList({ token, userRole, addToCart }) {
                       <td style={{ textAlign: 'right' }}>
                         <div style={{ display: 'flex', gap: '8px', justifyContent: 'flex-end' }}>
                           <button
-                            onClick={() => addToCart(p)}
+                            onClick={() => handleAddToCart(p)}
                             className="btn-secondary"
                             style={{ padding: '6px 12px', fontSize: '12px', background: 'var(--primary-glow)', color: 'var(--primary-color)', borderColor: 'var(--primary-color)' }}
                             disabled={p.quantity <= 0}
                           >
-                            + Cart
+                            Add to Cart
                           </button>
                           
                           <button
@@ -578,6 +588,13 @@ export default function ProductList({ token, userRole, addToCart }) {
           </div>
         </div>
       , document.body)}
+
+      {toast.show && (
+        <div className="custom-toast bg-glass animate-fade">
+          <span className="toast-icon">✓</span>
+          <span>{toast.message}</span>
+        </div>
+      )}
     </div>
   );
 }

@@ -154,3 +154,46 @@ input::placeholder {
 .animate-slide {
   animation: slideIn 0.3s cubic-bezier(0.4, 0, 0.2, 1) both;
 }
+
+/* Premium Floating Toast Notification styling */
+.custom-toast {
+  position: fixed;
+  bottom: 24px;
+  right: 24px;
+  padding: 14px 24px;
+  border-radius: var(--radius-md);
+  box-shadow: var(--glass-shadow);
+  border: 1px solid var(--surface-border);
+  color: var(--text-main);
+  font-weight: 500;
+  font-size: 14px;
+  z-index: 9999;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  animation: toastSlideIn 0.3s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+.toast-icon {
+  background: var(--success-glow);
+  color: var(--success-color);
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 11px;
+  font-weight: bold;
+}
+
+@keyframes toastSlideIn {
+  from {
+    opacity: 0;
+    transform: translateY(20px) scale(0.95);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}

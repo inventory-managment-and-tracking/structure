@@ -540,6 +540,7 @@ export default function App() {
             token={token}
             userRole={role}
             addToCart={addToCart}
+            onStockAdjusted={() => setRefreshAlerts(prev => prev + 1)}
           />
         )}
 
