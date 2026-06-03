@@ -527,9 +527,7 @@ export default function App() {
                     </div>
                   )}
 
-                  <div style={{ marginTop: '16px', background: 'var(--surface-light)', padding: '12px 16px', borderRadius: '8px', border: '1px solid var(--surface-border)', fontSize: '11px', color: 'var(--text-muted)' }}>
-                    💡 <strong>Quick testing tips:</strong> Copy-paste any product SKU (e.g. from the inventory grid tab) into the manual input box and hit Enter to simulate scanning a physical QR label.
-                  </div>
+
                 </div>
               </div>
 

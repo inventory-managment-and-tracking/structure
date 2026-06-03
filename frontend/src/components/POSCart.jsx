@@ -1,10 +1,25 @@
 import React, { useState } from 'react';
-import { ShoppingBag, Trash2, CheckCircle, X } from 'lucide-react';
+import { ShoppingBag, Trash2, CheckCircle, RotateCcw } from 'lucide-react';
 
 export default function POSCart({ cart, updateQty, removeFromCart, onCheckoutSuccess, token }) {
+  const [activeTab, setActiveTab] = useState('sell');
+
+  // Sell state
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [errorMsg, setErrorMsg] = useState('');
   const [completedSale, setCompletedSale] = useState(null);
+
+  // Refund state
+  const [refundForm, setRefundForm] = useState({
+    reason: 'wrong_size',
+    condition: 'resellable',
+    refund_type: 'cash',
+    refund_amount: '',
+    notes: ''
+  });
+  const [isRefunding, setIsRefunding] = useState(false);
+  const [refundError, setRefundError] = useState('');
+  const [completedRefund, setCompletedRefund] = useState(null);
 
   const total = cart.reduce((sum, item) => sum + (item.quantity * item.unit_price), 0);
 
@@ -15,23 +30,14 @@ export default function POSCart({ cart, updateQty, removeFromCart, onCheckoutSuc
     try {
       const res = await fetch('/api/sales', {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`
-        },
+        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
         body: JSON.stringify({
-          items: cart.map(item => ({
-            product_id: item.id,
-            quantity: item.quantity,
-            unit_price: item.unit_price
-          })),
+          items: cart.map(item => ({ product_id: item.id, quantity: item.quantity, unit_price: item.unit_price })),
           payment_method: 'cash'
         })
       });
-
       const data = await res.json();
       if (!data.success) throw new Error(data.message || 'Checkout failed');
-
       setCompletedSale(data.data);
       onCheckoutSuccess();
     } catch (err) {
@@ -41,17 +47,79 @@ export default function POSCart({ cart, updateQty, removeFromCart, onCheckoutSuc
     }
   };
 
+  const handleRefund = async () => {
+    if (!cart.length) return;
+    setIsRefunding(true);
+    setRefundError('');
+    try {
+      // Process a return for each scanned item
+      const results = [];
+      for (const item of cart) {
+        const res = await fetch('/api/returns', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+          body: JSON.stringify({
+            product_id: item.id,
+            quantity: item.quantity,
+            reason: refundForm.reason,
+            condition: refundForm.condition,
+            refund_type: refundForm.refund_type,
+            refund_amount: refundForm.refund_amount ? parseFloat(refundForm.refund_amount) : item.unit_price * item.quantity,
+            notes: refundForm.notes || undefined
+          })
+        });
+        const data = await res.json();
+        if (!data.success) throw new Error(data.message || `Refund failed for ${item.name}`);
+        results.push(data.data);
+      }
+      setCompletedRefund(results);
+      onCheckoutSuccess();
+    } catch (err) {
+      setRefundError(err.message);
+    } finally {
+      setIsRefunding(false);
+    }
+  };
+
   return (
     <>
       <div className="pos-cart-panel bg-glass animate-fade">
+
+        {/* Tab switcher */}
+        <div style={{ display: 'flex', gap: '4px', background: 'var(--surface-light)', borderRadius: '10px', padding: '4px', marginBottom: '16px' }}>
+          {['sell', 'refund'].map(tab => (
+            <button
+              key={tab}
+              onClick={() => { setActiveTab(tab); setErrorMsg(''); setRefundError(''); }}
+              style={{
+                flex: 1,
+                padding: '8px',
+                borderRadius: '7px',
+                fontSize: '13px',
+                fontWeight: '600',
+                background: activeTab === tab ? 'var(--surface-color)' : 'transparent',
+                color: activeTab === tab ? (tab === 'refund' ? 'var(--danger-color)' : 'var(--primary-color)') : 'var(--text-muted)',
+                boxShadow: activeTab === tab ? '0 1px 4px rgba(0,0,0,0.08)' : 'none',
+                transition: 'var(--transition-fast)',
+                display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px'
+              }}
+            >
+              {tab === 'sell' ? <ShoppingBag size={14} /> : <RotateCcw size={14} />}
+              {tab === 'sell' ? 'Sell' : 'Refund'}
+            </button>
+          ))}
+        </div>
+
+        {/* Cart header */}
         <div className="cart-header">
           <div className="cart-title">
-            <ShoppingBag size={20} className="text-gold" />
+            <ShoppingBag size={20} style={{ color: 'var(--primary-color)' }} />
             <h3 style={{ fontSize: '16px', fontWeight: '700' }}>Scanned Items</h3>
           </div>
           <span className="cart-count-badge">{cart.reduce((s, i) => s + i.quantity, 0)} items</span>
         </div>
 
+        {/* Item list — same for both tabs */}
         <div className="cart-items-scroll">
           {cart.length === 0 ? (
             <div style={{ textAlign: 'center', color: 'var(--text-dim)', padding: '40px 10px', display: 'flex', flexDirection: 'column', gap: '10px', alignItems: 'center' }}>
@@ -66,16 +134,13 @@ export default function POSCart({ cart, updateQty, removeFromCart, onCheckoutSuc
                   <div className="cart-item-name">{item.name}</div>
                   <div className="cart-item-sku mono">{item.sku}</div>
                 </div>
-
                 <div className="cart-item-controls">
                   <button onClick={() => updateQty(item.id, -1)} className="qty-btn">-</button>
                   <span style={{ fontSize: '13px', fontWeight: '600', minWidth: '16px', textAlign: 'center' }}>{item.quantity}</span>
                   <button onClick={() => updateQty(item.id, 1)} className="qty-btn">+</button>
-
                   <div className="cart-item-price-calc">
                     <div className="cart-item-price mono">${(item.unit_price * item.quantity).toFixed(2)}</div>
                   </div>
-
                   <button onClick={() => removeFromCart(item.id)} style={{ color: 'var(--text-dim)', padding: '4px' }}>
                     <Trash2 size={14} />
                   </button>
@@ -92,22 +157,93 @@ export default function POSCart({ cart, updateQty, removeFromCart, onCheckoutSuc
           </div>
         </div>
 
-        {errorMsg && (
-          <div style={{ background: 'var(--danger-glow)', color: 'var(--danger-color)', border: '1px solid var(--danger-color)', padding: '10px', borderRadius: '6px', fontSize: '12px', marginBottom: '12px', textAlign: 'center' }}>
-            {errorMsg}
-          </div>
+        {/* SELL tab bottom */}
+        {activeTab === 'sell' && (
+          <>
+            {errorMsg && (
+              <div style={{ background: 'var(--danger-glow)', color: 'var(--danger-color)', border: '1px solid var(--danger-color)', padding: '10px', borderRadius: '6px', fontSize: '12px', marginBottom: '12px', textAlign: 'center' }}>
+                {errorMsg}
+              </div>
+            )}
+            <button onClick={handleCheckout} disabled={cart.length === 0 || isSubmitting} className="checkout-btn">
+              {isSubmitting ? 'Processing...' : `Confirm Sale — $${total.toFixed(2)}`}
+            </button>
+          </>
         )}
 
-        <button
-          onClick={handleCheckout}
-          disabled={cart.length === 0 || isSubmitting}
-          className="checkout-btn"
-        >
-          {isSubmitting ? 'Processing...' : `Confirm Sale — $${total.toFixed(2)}`}
-        </button>
+        {/* REFUND tab bottom */}
+        {activeTab === 'refund' && (
+          <>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', marginBottom: '12px' }}>
+              <div className="form-grid-2">
+                <div className="form-group" style={{ marginBottom: 0 }}>
+                  <label className="form-label">Reason</label>
+                  <select value={refundForm.reason} onChange={e => setRefundForm({ ...refundForm, reason: e.target.value })}>
+                    <option value="wrong_size">Wrong Size</option>
+                    <option value="defective">Defective</option>
+                    <option value="changed_mind">Changed Mind</option>
+                    <option value="other">Other</option>
+                  </select>
+                </div>
+                <div className="form-group" style={{ marginBottom: 0 }}>
+                  <label className="form-label">Condition</label>
+                  <select value={refundForm.condition} onChange={e => setRefundForm({ ...refundForm, condition: e.target.value })}>
+                    <option value="resellable">Resellable</option>
+                    <option value="damaged">Damaged</option>
+                    <option value="missing_tags">Missing Tags</option>
+                  </select>
+                </div>
+              </div>
+              <div className="form-grid-2">
+                <div className="form-group" style={{ marginBottom: 0 }}>
+                  <label className="form-label">Refund Type</label>
+                  <select value={refundForm.refund_type} onChange={e => setRefundForm({ ...refundForm, refund_type: e.target.value })}>
+                    <option value="cash">Cash</option>
+                    <option value="store_credit">Store Credit</option>
+                    <option value="exchange">Exchange</option>
+                  </select>
+                </div>
+                <div className="form-group" style={{ marginBottom: 0 }}>
+                  <label className="form-label">Amount (optional)</label>
+                  <input
+                    type="number"
+                    step="0.01"
+                    placeholder={`$${total.toFixed(2)}`}
+                    value={refundForm.refund_amount}
+                    onChange={e => setRefundForm({ ...refundForm, refund_amount: e.target.value })}
+                  />
+                </div>
+              </div>
+              <div className="form-group" style={{ marginBottom: 0 }}>
+                <label className="form-label">Notes (optional)</label>
+                <input
+                  type="text"
+                  placeholder="e.g. Customer receipt #1234"
+                  value={refundForm.notes}
+                  onChange={e => setRefundForm({ ...refundForm, notes: e.target.value })}
+                />
+              </div>
+            </div>
+
+            {refundError && (
+              <div style={{ background: 'var(--danger-glow)', color: 'var(--danger-color)', border: '1px solid var(--danger-color)', padding: '10px', borderRadius: '6px', fontSize: '12px', marginBottom: '12px', textAlign: 'center' }}>
+                {refundError}
+              </div>
+            )}
+
+            <button
+              onClick={handleRefund}
+              disabled={cart.length === 0 || isRefunding}
+              className="checkout-btn"
+              style={{ background: 'var(--danger-color)', boxShadow: '0 4px 12px var(--danger-glow)' }}
+            >
+              {isRefunding ? 'Processing...' : `Process Refund — $${total.toFixed(2)}`}
+            </button>
+          </>
+        )}
       </div>
 
-      {/* Sale confirmed dialog */}
+      {/* Sale confirmed */}
       {completedSale && (
         <div className="receipt-overlay">
           <div className="receipt-card animate-fade" style={{ maxWidth: '340px', textAlign: 'center' }}>
@@ -118,7 +254,6 @@ export default function POSCart({ cart, updateQty, removeFromCart, onCheckoutSuc
             <div style={{ fontSize: '12px', color: '#555', marginBottom: '16px' }}>
               {completedSale.sale_code} · {new Date(completedSale.created_at).toLocaleTimeString()}
             </div>
-
             <div className="receipt-items" style={{ textAlign: 'left', marginBottom: '12px' }}>
               {completedSale.items.map((item, idx) => (
                 <div key={idx} style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '6px', fontSize: '13px' }}>
@@ -127,16 +262,39 @@ export default function POSCart({ cart, updateQty, removeFromCart, onCheckoutSuc
                 </div>
               ))}
             </div>
-
             <div className="receipt-dashed-line" />
             <div className="receipt-totals" style={{ fontSize: '15px', marginTop: '8px' }}>
-              <span>Total Deducted:</span>
+              <span>Total:</span>
               <span>${parseFloat(completedSale.total_amount).toFixed(2)}</span>
             </div>
+            <button onClick={() => setCompletedSale(null)} className="receipt-dismiss-btn" style={{ marginTop: '20px' }}>Done</button>
+          </div>
+        </div>
+      )}
 
-            <button onClick={() => setCompletedSale(null)} className="receipt-dismiss-btn" style={{ marginTop: '20px' }}>
-              Done
-            </button>
+      {/* Refund confirmed */}
+      {completedRefund && (
+        <div className="receipt-overlay">
+          <div className="receipt-card animate-fade" style={{ maxWidth: '340px', textAlign: 'center' }}>
+            <div style={{ display: 'flex', justifyContent: 'center', color: 'var(--danger-color)', marginBottom: '12px' }}>
+              <RotateCcw size={40} />
+            </div>
+            <div className="receipt-title" style={{ marginBottom: '4px' }}>Refund Processed</div>
+            <div style={{ fontSize: '12px', color: '#555', marginBottom: '16px' }}>{completedRefund.length} item(s) returned</div>
+            <div className="receipt-items" style={{ textAlign: 'left', marginBottom: '12px' }}>
+              {completedRefund.map((r, idx) => (
+                <div key={idx} style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '6px', fontSize: '13px' }}>
+                  <span>{r.product_name} ×{r.quantity}</span>
+                  <span className="mono">{r.return_code}</span>
+                </div>
+              ))}
+            </div>
+            <div className="receipt-dashed-line" />
+            <div className="receipt-totals" style={{ fontSize: '13px', marginTop: '8px' }}>
+              <span>Type:</span>
+              <span style={{ textTransform: 'capitalize' }}>{completedRefund[0]?.refund_type?.replace('_', ' ')}</span>
+            </div>
+            <button onClick={() => setCompletedRefund(null)} className="receipt-dismiss-btn" style={{ marginTop: '20px' }}>Done</button>
           </div>
         </div>
       )}
