@@ -39,6 +39,7 @@ export default function QRScanner({ onScanSuccess, onScanError }) {
           },
         },
         (decodedText) => {
+          stopScanner();
           onScanSuccess(decodedText);
           // Success chime
           try {

@@ -4,29 +4,29 @@
    ────────────────────────────────────────────────────────────── */
 
 :root {
-  /* Color Palettes */
-  --bg-color: #08080a;
-  --surface-color: #111116;
-  --surface-light: #181822;
-  --surface-border: rgba(255, 255, 255, 0.08);
-  --surface-hover: rgba(255, 255, 255, 0.04);
+  /* Nordic Minimalist Light Theme Colors */
+  --bg-color: #f4f5f6;           /* Soft off-white */
+  --surface-color: #ffffff;      /* Pure white panels */
+  --surface-light: #eceef1;      /* Light grey fields & tables */
+  --surface-border: #e2e6eb;     /* Subtle clean borders */
+  --surface-hover: #eef1f4;      /* Interactive hover state */
   
-  --primary-color: #d4af37;     /* Gold Accent */
-  --primary-glow: rgba(212, 175, 55, 0.15);
-  --primary-hover: #c5a02e;
+  --primary-color: #1a1c23;      /* Ink Black accent */
+  --primary-glow: rgba(26, 28, 35, 0.08);
+  --primary-hover: #2d303d;
   
-  --success-color: #10b981;     /* Emerald Green */
-  --success-glow: rgba(16, 185, 129, 0.15);
+  --success-color: #0f9d58;      /* Clean emerald green */
+  --success-glow: rgba(15, 157, 88, 0.1);
   
-  --danger-color: #ef4444;      /* Crimson Red */
-  --danger-glow: rgba(239, 68, 68, 0.15);
+  --danger-color: #d93025;       /* Editorial red */
+  --danger-glow: rgba(217, 48, 37, 0.1);
   
-  --warning-color: #f59e0b;     /* Warning Amber */
-  --warning-glow: rgba(245, 158, 11, 0.15);
+  --warning-color: #f29900;      /* Amber warning */
+  --warning-glow: rgba(242, 153, 0, 0.1);
   
-  --text-main: #f3f4f6;
-  --text-muted: #9ca3af;
-  --text-dim: #6b7280;
+  --text-main: #1a1c23;          /* Charcoal text */
+  --text-muted: #5f6368;         /* Cool slate grey text */
+  --text-dim: #9aa0a6;           /* Soft placeholder text */
 
   /* Typography */
   --font-sans: 'Inter', system-ui, -apple-system, sans-serif;
@@ -39,7 +39,7 @@
   --radius-lg: 24px;
   --transition-fast: 0.2s cubic-bezier(0.4, 0, 0.2, 1);
   --transition-smooth: 0.35s cubic-bezier(0.4, 0, 0.2, 1);
-  --glass-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.37);
+  --glass-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.04);
   --glass-backdrop: blur(16px);
 }
 
@@ -125,7 +125,7 @@ input::placeholder {
 }
 
 .bg-glass {
-  background: rgba(17, 17, 22, 0.7);
+  background: rgba(255, 255, 255, 0.75);
   backdrop-filter: var(--glass-backdrop);
   -webkit-backdrop-filter: var(--glass-backdrop);
   border: 1px solid var(--surface-border);
