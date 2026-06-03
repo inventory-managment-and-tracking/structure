@@ -188,6 +188,7 @@ export default function ProductList({ token, userRole, addToCart, onStockAdjuste
       setShowAdjustModal(false);
       setAdjustData({ quantity_change: '', notes: '' });
       fetchData();
+      window.dispatchEvent(new Event('stock-changed'));
     } catch (err) {
       alert(err.message);
     }

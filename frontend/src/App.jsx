@@ -85,6 +85,12 @@ export default function App() {
     }
   }, [token, refreshAlerts]);
 
+  useEffect(() => {
+    const handler = () => fetchDashboardStats();
+    window.addEventListener('stock-changed', handler);
+    return () => window.removeEventListener('stock-changed', handler);
+  }, [token]);
+
   // Listen for global unauthorized events from components
   useEffect(() => {
     const handleUnauthorized = () => {
