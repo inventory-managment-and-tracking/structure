@@ -15,7 +15,10 @@ import {
 export default function App() {
   const [token, setToken] = useState(localStorage.getItem('token') || '');
   const [user, setUser] = useState(JSON.parse(localStorage.getItem('user')) || null);
-  const [activeTab, setActiveTab] = useState('dashboard');
+  const [activeTab, setActiveTab] = useState(() => {
+    const savedUser = JSON.parse(localStorage.getItem('user'));
+    return savedUser?.role === 'cashier' ? 'pos' : 'dashboard';
+  });
   const [refreshAlerts, setRefreshAlerts] = useState(0);
 
   // Login form state
@@ -245,6 +248,7 @@ export default function App() {
   }
 
   const role = user?.role || 'cashier';
+  const isEmployee = role === 'cashier';
 
   return (
     <div className="app-container">
@@ -256,38 +260,40 @@ export default function App() {
         </div>
 
         <nav className="nav-links">
-          <button 
-            onClick={() => setActiveTab('dashboard')} 
-            className={`nav-item ${activeTab === 'dashboard' ? 'active' : ''}`}
-          >
-            <LayoutDashboard size={18} /> Dashboard
-          </button>
+          {!isEmployee && (
+            <button
+              onClick={() => setActiveTab('dashboard')}
+              className={`nav-item ${activeTab === 'dashboard' ? 'active' : ''}`}
+            >
+              <LayoutDashboard size={18} /> Dashboard
+            </button>
+          )}
 
-          <button 
-            onClick={() => setActiveTab('pos')} 
+          <button
+            onClick={() => setActiveTab('pos')}
             className={`nav-item ${activeTab === 'pos' ? 'active' : ''}`}
           >
             <ShoppingCart size={18} /> POS Checkout
           </button>
 
-          <button 
-            onClick={() => setActiveTab('inventory')} 
+          <button
+            onClick={() => setActiveTab('inventory')}
             className={`nav-item ${activeTab === 'inventory' ? 'active' : ''}`}
           >
             <Shirt size={18} /> Inventory Catalog
           </button>
 
-          {role !== 'cashier' && (
-            <button 
-              onClick={() => setActiveTab('reports')} 
+          {!isEmployee && (
+            <button
+              onClick={() => setActiveTab('reports')}
               className={`nav-item ${activeTab === 'reports' ? 'active' : ''}`}
             >
               <BarChart3 size={18} /> Reports & Charts
             </button>
           )}
 
-          <button 
-            onClick={() => setActiveTab('alerts')} 
+          <button
+            onClick={() => setActiveTab('alerts')}
             className={`nav-item ${activeTab === 'alerts' ? 'active' : ''}`}
             style={{ display: 'flex', justifyContent: 'space-between', width: '100%' }}
           >
@@ -320,10 +326,12 @@ export default function App() {
 
       {/* 2. MOBILE NAVBAR (Tab bar) */}
       <nav className="mobile-nav">
-        <button onClick={() => setActiveTab('dashboard')} className={`mobile-nav-item ${activeTab === 'dashboard' ? 'active' : ''}`}>
-          <LayoutDashboard size={20} />
-          <span>Dashboard</span>
-        </button>
+        {!isEmployee && (
+          <button onClick={() => setActiveTab('dashboard')} className={`mobile-nav-item ${activeTab === 'dashboard' ? 'active' : ''}`}>
+            <LayoutDashboard size={20} />
+            <span>Dashboard</span>
+          </button>
+        )}
 
         <button onClick={() => setActiveTab('pos')} className={`mobile-nav-item ${activeTab === 'pos' ? 'active' : ''}`}>
           <ShoppingCart size={20} />
@@ -335,7 +343,7 @@ export default function App() {
           <span>Catalog</span>
         </button>
 
-        {role !== 'cashier' && (
+        {!isEmployee && (
           <button onClick={() => setActiveTab('reports')} className={`mobile-nav-item ${activeTab === 'reports' ? 'active' : ''}`}>
             <BarChart3 size={20} />
             <span>Reports</span>
@@ -375,7 +383,7 @@ export default function App() {
         )}
 
         {/* Tab View 1: Dashboard overview */}
-        {activeTab === 'dashboard' && (
+        {activeTab === 'dashboard' && !isEmployee && (
           <div className="animate-fade">
             <div className="page-header">
               <div className="page-title-section">
@@ -551,7 +559,7 @@ export default function App() {
         )}
 
         {/* Tab View 4: Reports charts and valuation dashboard */}
-        {activeTab === 'reports' && (
+        {activeTab === 'reports' && !isEmployee && (
           <ReportsView 
             token={token}
             userRole={role}
