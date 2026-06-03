@@ -13,6 +13,12 @@ export default function AlertsManager({ token, userRole, refreshTrigger }) {
       const res = await fetch(endpoint, {
         headers: { 'Authorization': `Bearer ${token}` }
       });
+
+      if (res.status === 401) {
+        window.dispatchEvent(new Event('unauthorized'));
+        return;
+      }
+
       const data = await res.json();
       if (data.success) {
         setAlerts(data.data);
@@ -26,7 +32,7 @@ export default function AlertsManager({ token, userRole, refreshTrigger }) {
 
   useEffect(() => {
     fetchAlerts();
-  }, [showResolved, refreshTrigger]);
+  }, [showResolved, refreshTrigger, token]);
 
   const handleResolve = async (id) => {
     try {

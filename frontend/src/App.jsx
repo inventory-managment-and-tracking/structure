@@ -35,6 +35,16 @@ export default function App() {
   const [dbStockSummary, setDbStockSummary] = useState(null);
   const [dbLoading, setDbLoading] = useState(true);
 
+  // Sign out cleanly (hoisted so we can call it anywhere)
+  const handleLogout = React.useCallback(() => {
+    localStorage.removeItem('token');
+    localStorage.removeItem('user');
+    setToken('');
+    setUser(null);
+    setCart([]);
+    setActiveTab('dashboard');
+  }, []);
+
   // Fetch critical alerts count & summary dashboard statistics
   const fetchDashboardStats = async () => {
     if (!token) return;
@@ -46,6 +56,11 @@ export default function App() {
         fetch('/api/reports/sales/summary', { headers }),
         fetch('/api/reports/stock/valuation', { headers })
       ]);
+
+      if (alertsRes.status === 401 || salesRes.status === 401 || stockRes.status === 401) {
+        handleLogout();
+        return;
+      }
 
       const alertsData = await alertsRes.json();
       const salesData = await salesRes.json();
@@ -69,6 +84,15 @@ export default function App() {
       fetchDashboardStats();
     }
   }, [token, refreshAlerts]);
+
+  // Listen for global unauthorized events from components
+  useEffect(() => {
+    const handleUnauthorized = () => {
+      handleLogout();
+    };
+    window.addEventListener('unauthorized', handleUnauthorized);
+    return () => window.removeEventListener('unauthorized', handleUnauthorized);
+  }, [handleLogout]);
 
   // Authenticate user via JWT
   const handleLogin = async (e) => {
@@ -99,16 +123,6 @@ export default function App() {
     } finally {
       setIsLoggingIn(false);
     }
-  };
-
-  // Sign out cleanly
-  const handleLogout = () => {
-    localStorage.removeItem('token');
-    localStorage.removeItem('user');
-    setToken('');
-    setUser(null);
-    setCart([]);
-    setActiveTab('dashboard');
   };
 
   // POS Cart Management

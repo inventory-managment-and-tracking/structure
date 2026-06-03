@@ -21,6 +21,16 @@ export default function ReportsView({ token, userRole }) {
         fetch('/api/reports/returns/summary', { headers })
       ]);
 
+      if (
+        summaryRes.status === 401 ||
+        valuationRes.status === 401 ||
+        topProductsRes.status === 401 ||
+        returnsRes.status === 401
+      ) {
+        window.dispatchEvent(new Event('unauthorized'));
+        return;
+      }
+
       const summaryData = await summaryRes.json();
       const valuationData = await valuationRes.json();
       const topProductsData = await topProductsRes.json();
@@ -40,7 +50,7 @@ export default function ReportsView({ token, userRole }) {
 
   useEffect(() => {
     fetchReports();
-  }, []);
+  }, [token]);
 
   const COLORS = ['#d4af37', '#10b981', '#ef4444', '#f59e0b', '#3b82f6', '#8b5cf6', '#ec4899'];
 

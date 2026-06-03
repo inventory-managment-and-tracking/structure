@@ -63,6 +63,11 @@ export default function ProductList({ token, userRole, addToCart }) {
         fetch('/api/suppliers', { headers })
       ]);
 
+      if (prodRes.status === 401 || catRes.status === 401 || supRes.status === 401) {
+        window.dispatchEvent(new Event('unauthorized'));
+        return;
+      }
+
       const prodData = await prodRes.json();
       const catData = await catRes.json();
       const supData = await supRes.json();
@@ -81,7 +86,7 @@ export default function ProductList({ token, userRole, addToCart }) {
 
   useEffect(() => {
     fetchData();
-  }, [search, categoryFilter, sizeFilter, colorFilter]);
+  }, [search, categoryFilter, sizeFilter, colorFilter, token]);
 
   const [addError, setAddError] = useState('');
   const [isAdding, setIsAdding] = useState(false);
