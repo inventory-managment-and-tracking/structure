@@ -16,14 +16,21 @@ VALUES (
 )
 ON CONFLICT (username) DO NOTHING;
 
--- ── SAMPLE CATEGORIES ────────────────────────────────────────
+-- ── MEN'S CLOTHING CATEGORIES ────────────────────────────────
 INSERT INTO categories (name, description) VALUES
-  ('Shirts',    'All types of shirts including T-shirts, dress shirts, and polos'),
-  ('Trousers',  'Jeans, chinos, slacks, and all trouser styles'),
-  ('Dresses',   'Casual and formal dresses for women'),
-  ('Jackets',   'Coats, denim jackets, blazers, and outerwear'),
-  ('Shoes',     'Footwear including sneakers, heels, and sandals'),
-  ('Accessories','Belts, scarves, hats, and bags')
+  ('Shirts',       'T-shirts, dress shirts, polo shirts, and casual button-ups for men'),
+  ('Trousers',     'Jeans, chinos, dress slacks, cargo pants, and all trouser styles for men'),
+  ('Suits',        'Full suits, blazers, sport coats, and formal jacket sets for men'),
+  ('Jackets',      'Coats, denim jackets, windbreakers, hoodies, and outerwear for men'),
+  ('Sweaters',     'Pullovers, cardigans, turtlenecks, and knitwear for men'),
+  ('Shorts',       'Casual shorts, chino shorts, athletic shorts, and swim trunks for men'),
+  ('Sportswear',   'Athletic wear, tracksuits, gym shorts, and performance clothing for men'),
+  ('Underwear',    'Boxers, briefs, undershirts, and men''s innerwear'),
+  ('Shoes',        'Sneakers, dress shoes, loafers, boots, and sandals for men (EU sizing)'),
+  ('Neck Ties',    'Neckties, bow ties, and cravats for men — one size fits all'),
+  ('Belts',        'Leather belts, fabric belts, and fashion belts for men'),
+  ('Accessories',  'Hats, caps, scarves, wallets, sunglasses, and other men''s accessories'),
+  ('Socks',        'Ankle socks, dress socks, sport socks, and compression socks for men')
 ON CONFLICT DO NOTHING;
 
 -- ── SAMPLE SUPPLIERS ─────────────────────────────────────────

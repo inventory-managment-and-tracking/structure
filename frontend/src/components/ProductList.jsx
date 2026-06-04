@@ -30,7 +30,7 @@ export default function ProductList({ token, userRole, addToCart, onStockAdjuste
     unit_price: '',
     cost_price: '',
     category_id: '',
-    supplier_id: '',
+    supplier_name: '', // free-text; matched to supplier_id on submit
     size: '',
     color: '',
     quantity: '',
@@ -45,6 +45,44 @@ export default function ProductList({ token, userRole, addToCart, onStockAdjuste
   });
 
   const [generatedQr, setGeneratedQr] = useState(null);
+
+  // ── Men's clothing constants ─────────────────────────────────
+  const CLOTHING_SIZES = ['XS', 'S', 'M', 'L', 'XL', 'XXL'];
+  const SHOE_SIZES_EU = [
+    { eu: 38, cm: '24.0' }, { eu: 39, cm: '24.7' }, { eu: 40, cm: '25.3' },
+    { eu: 41, cm: '26.0' }, { eu: 42, cm: '26.7' }, { eu: 43, cm: '27.3' },
+    { eu: 44, cm: '28.0' }, { eu: 45, cm: '28.7' }, { eu: 46, cm: '29.3' },
+    { eu: 47, cm: '30.0' }
+  ];
+  const MEN_COLORS = [
+    'Black', 'White', 'Navy Blue', 'Charcoal Gray', 'Light Gray',
+    'Olive Green', 'Khaki / Beige', 'Burgundy', 'Brown', 'Camel',
+    'Royal Blue', 'Sky Blue', 'Forest Green', 'Mustard Yellow',
+    'Red', 'Off-White / Cream', 'Teal', 'Maroon', 'Dark Green', 'Coral'
+  ];
+
+  // Returns 'shoes' | 'none' | 'clothing' based on selected category
+  const getSizeType = (categoryId) => {
+    if (!categoryId) return 'clothing';
+    const cat = categories.find(c => String(c.id) === String(categoryId));
+    if (!cat) return 'clothing';
+    const n = cat.name.toLowerCase();
+    if (n.includes('shoe') || n.includes('boot')) return 'shoes';
+    if (n.includes('neck tie') || n.includes('necktie') || n.includes('tie')) return 'none';
+    return 'clothing';
+  };
+
+  // Supplier history backed by localStorage for autocomplete hints
+  const getSupplierHistory = () => {
+    try { return JSON.parse(localStorage.getItem('supplier_history') || '[]'); }
+    catch { return []; }
+  };
+  const saveSupplierToHistory = (name) => {
+    if (!name?.trim()) return;
+    const hist = getSupplierHistory();
+    const updated = [name.trim(), ...hist.filter(h => h !== name.trim())].slice(0, 10);
+    localStorage.setItem('supplier_history', JSON.stringify(updated));
+  };
 
   // Fetch all products, categories, suppliers
   const fetchData = async () => {
@@ -126,7 +164,12 @@ export default function ProductList({ token, userRole, addToCart, onStockAdjuste
       body.unit_price = parseFloat(newProduct.unit_price);
       if (newProduct.cost_price) body.cost_price = parseFloat(newProduct.cost_price);
       if (newProduct.category_id) body.category_id = parseInt(newProduct.category_id, 10);
-      if (newProduct.supplier_id) body.supplier_id = parseInt(newProduct.supplier_id, 10);
+      // Match typed supplier name to a known DB supplier (optional)
+      if (newProduct.supplier_name?.trim()) {
+        const matched = suppliers.find(s => s.name.toLowerCase() === newProduct.supplier_name.trim().toLowerCase());
+        if (matched) body.supplier_id = matched.id;
+        saveSupplierToHistory(newProduct.supplier_name.trim());
+      }
       if (newProduct.size) body.size = newProduct.size.trim();
       if (newProduct.color) body.color = newProduct.color.trim();
       body.quantity = newProduct.quantity ? parseInt(newProduct.quantity, 10) : 0;
@@ -153,7 +196,7 @@ export default function ProductList({ token, userRole, addToCart, onStockAdjuste
       setAddError('');
       setNewProduct({
         name: '', unit_price: '', cost_price: '', category_id: '',
-        supplier_id: '', size: '', color: '', quantity: '',
+        supplier_name: '', size: '', color: '', quantity: '',
         low_stock_threshold: '', description: '', sku: ''
       });
       fetchData();
@@ -383,112 +426,153 @@ export default function ProductList({ token, userRole, addToCart, onStockAdjuste
               <button onClick={() => { setShowAddModal(false); setAddError(''); }} className="modal-close-btn"><X size={18} /></button>
             </div>
             <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+
+              {/* Product Name */}
               <div className="form-group">
                 <label className="form-label">Product Name *</label>
                 <input
                   type="text"
-                  placeholder="e.g. Slim Fit Denim Jeans"
+                  placeholder="e.g. Slim Fit Oxford Shirt"
                   value={newProduct.name}
                   onChange={(e) => setNewProduct({ ...newProduct, name: e.target.value })}
                 />
               </div>
 
+              {/* Retail + Cost Price */}
               <div className="form-grid-2">
                 <div className="form-group">
                   <label className="form-label">Retail Price ($) *</label>
-                  <input
-                    type="number"
-                    step="0.01"
-                    placeholder="29.99"
+                  <input type="number" step="0.01" placeholder="29.99"
                     value={newProduct.unit_price}
-                    onChange={(e) => setNewProduct({ ...newProduct, unit_price: e.target.value })}
-                  />
+                    onChange={(e) => setNewProduct({ ...newProduct, unit_price: e.target.value })} />
                 </div>
                 <div className="form-group">
                   <label className="form-label">Cost Price ($)</label>
-                  <input
-                    type="number"
-                    step="0.01"
-                    placeholder="12.50"
+                  <input type="number" step="0.01" placeholder="12.50"
                     value={newProduct.cost_price}
-                    onChange={(e) => setNewProduct({ ...newProduct, cost_price: e.target.value })}
-                  />
+                    onChange={(e) => setNewProduct({ ...newProduct, cost_price: e.target.value })} />
                 </div>
               </div>
 
-              <div className="form-grid-2">
-                <div className="form-group">
-                  <label className="form-label">Category</label>
-                  <select
-                    value={newProduct.category_id}
-                    onChange={(e) => setNewProduct({ ...newProduct, category_id: e.target.value })}
-                  >
-                    <option value="">Select Category</option>
-                    {categories.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
-                  </select>
-                </div>
-                <div className="form-group">
-                  <label className="form-label">Supplier</label>
-                  <select
-                    value={newProduct.supplier_id}
-                    onChange={(e) => setNewProduct({ ...newProduct, supplier_id: e.target.value })}
-                  >
-                    <option value="">Select Supplier</option>
-                    {suppliers.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
-                  </select>
-                </div>
+              {/* Category — full width, drives size logic */}
+              <div className="form-group">
+                <label className="form-label">Category</label>
+                <select
+                  value={newProduct.category_id}
+                  onChange={(e) => {
+                    const newCatId = e.target.value;
+                    const sizeType = getSizeType(newCatId);
+                    setNewProduct({ ...newProduct, category_id: newCatId, size: sizeType === 'none' ? 'One Size' : '' });
+                  }}
+                >
+                  <option value="">Select Men's Category</option>
+                  {[...new Map(categories.map(c => [c.id, c])).values()].map(c => (
+                    <option key={c.id} value={c.id}>{c.name}</option>
+                  ))}
+                </select>
               </div>
 
+              {/* Supplier — optional free-text with history hints */}
+              <div className="form-group">
+                <label className="form-label">
+                  Supplier{' '}
+                  <span style={{ fontSize: '11px', fontWeight: 400, color: 'var(--text-dim)' }}>(optional)</span>
+                </label>
+                <input
+                  type="text"
+                  list="supplier-hints-list"
+                  placeholder="Type supplier name — previous entries appear as hints"
+                  value={newProduct.supplier_name}
+                  onChange={(e) => setNewProduct({ ...newProduct, supplier_name: e.target.value })}
+                  autoComplete="off"
+                />
+                <datalist id="supplier-hints-list">
+                  {suppliers.map(s => <option key={s.id} value={s.name} />)}
+                  {getSupplierHistory()
+                    .filter(h => !suppliers.some(s => s.name === h))
+                    .map(h => <option key={h} value={h} />)}
+                </datalist>
+              </div>
+
+              {/* Size (category-aware) + Color */}
               <div className="form-grid-2">
                 <div className="form-group">
-                  <label className="form-label">Size (S/M/L etc.)</label>
-                  <input
-                    type="text"
-                    placeholder="L"
-                    value={newProduct.size}
-                    onChange={(e) => setNewProduct({ ...newProduct, size: e.target.value })}
-                  />
+                  {getSizeType(newProduct.category_id) === 'clothing' && (
+                    <>
+                      <label className="form-label">Size</label>
+                      <select value={newProduct.size}
+                        onChange={(e) => setNewProduct({ ...newProduct, size: e.target.value })}>
+                        <option value="">Select Clothing Size</option>
+                        {CLOTHING_SIZES.map(s => <option key={s} value={s}>{s}</option>)}
+                      </select>
+                    </>
+                  )}
+                  {getSizeType(newProduct.category_id) === 'shoes' && (
+                    <>
+                      <label className="form-label">Shoe Size (EU)</label>
+                      <select value={newProduct.size}
+                        onChange={(e) => setNewProduct({ ...newProduct, size: e.target.value })}>
+                        <option value="">Select EU Size</option>
+                        {SHOE_SIZES_EU.map(s => (
+                          <option key={s.eu} value={`EU ${s.eu}`}>EU {s.eu} — ≈{s.cm} cm</option>
+                        ))}
+                      </select>
+                      <span style={{ fontSize: '11px', color: 'var(--text-dim)', marginTop: '4px', display: 'block' }}>
+                        EU sizing — measure foot heel to toe
+                      </span>
+                    </>
+                  )}
+                  {getSizeType(newProduct.category_id) === 'none' && (
+                    <>
+                      <label className="form-label">Size</label>
+                      <input type="text" value="One Size Fits All" disabled
+                        style={{ opacity: 0.5, cursor: 'not-allowed' }} />
+                      <span style={{ fontSize: '11px', color: 'var(--text-dim)', marginTop: '4px', display: 'block' }}>
+                        Neck ties are one-size-fits-all
+                      </span>
+                    </>
+                  )}
                 </div>
+
+                {/* Color — datalist with common men's colors, free-type allowed */}
                 <div className="form-group">
                   <label className="form-label">Color</label>
                   <input
                     type="text"
-                    placeholder="Blue"
+                    list="men-colors-list"
+                    placeholder="e.g. Navy Blue (or type custom)"
                     value={newProduct.color}
                     onChange={(e) => setNewProduct({ ...newProduct, color: e.target.value })}
+                    autoComplete="off"
                   />
+                  <datalist id="men-colors-list">
+                    {MEN_COLORS.map(c => <option key={c} value={c} />)}
+                  </datalist>
                 </div>
               </div>
 
+              {/* Qty + Low Stock Threshold */}
               <div className="form-grid-2">
                 <div className="form-group">
                   <label className="form-label">Initial Quantity</label>
-                  <input
-                    type="number"
-                    placeholder="10"
+                  <input type="number" placeholder="10"
                     value={newProduct.quantity}
-                    onChange={(e) => setNewProduct({ ...newProduct, quantity: e.target.value })}
-                  />
+                    onChange={(e) => setNewProduct({ ...newProduct, quantity: e.target.value })} />
                 </div>
                 <div className="form-group">
                   <label className="form-label">Low Stock Warning Threshold</label>
-                  <input
-                    type="number"
-                    placeholder="5"
+                  <input type="number" placeholder="5"
                     value={newProduct.low_stock_threshold}
-                    onChange={(e) => setNewProduct({ ...newProduct, low_stock_threshold: e.target.value })}
-                  />
+                    onChange={(e) => setNewProduct({ ...newProduct, low_stock_threshold: e.target.value })} />
                 </div>
               </div>
 
+              {/* SKU */}
               <div className="form-group">
-                <label className="form-label">SKU (Leave blank to generate)</label>
-                <input
-                  type="text"
-                  placeholder="e.g. CLT-20250601-0001"
+                <label className="form-label">SKU (Leave blank to auto-generate)</label>
+                <input type="text" placeholder="e.g. CLT-20250601-0001"
                   value={newProduct.sku}
-                  onChange={(e) => setNewProduct({ ...newProduct, sku: e.target.value })}
-                />
+                  onChange={(e) => setNewProduct({ ...newProduct, sku: e.target.value })} />
               </div>
 
               {addError && (
@@ -497,13 +581,8 @@ export default function ProductList({ token, userRole, addToCart, onStockAdjuste
                 </div>
               )}
 
-              <button
-                type="button"
-                className="submit-btn"
-                style={{ marginTop: '10px' }}
-                disabled={isAdding}
-                onClick={handleAddProduct}
-              >
+              <button type="button" className="submit-btn" style={{ marginTop: '10px' }}
+                disabled={isAdding} onClick={handleAddProduct}>
                 {isAdding ? 'Registering...' : 'Register Product'}
               </button>
             </div>
