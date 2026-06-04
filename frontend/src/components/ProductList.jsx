@@ -49,10 +49,16 @@ export default function ProductList({ token, userRole, addToCart, onStockAdjuste
   // ── Men's clothing constants ─────────────────────────────────
   const CLOTHING_SIZES = ['XS', 'S', 'M', 'L', 'XL', 'XXL'];
   const SHOE_SIZES_EU = [
-    { eu: 38, cm: '24.0' }, { eu: 39, cm: '24.7' }, { eu: 40, cm: '25.3' },
-    { eu: 41, cm: '26.0' }, { eu: 42, cm: '26.7' }, { eu: 43, cm: '27.3' },
-    { eu: 44, cm: '28.0' }, { eu: 45, cm: '28.7' }, { eu: 46, cm: '29.3' },
-    { eu: 47, cm: '30.0' }
+    { eu: '38',   cm: '24.0' }, { eu: '38.5', cm: '24.3' },
+    { eu: '39',   cm: '24.7' }, { eu: '39.5', cm: '25.0' },
+    { eu: '40',   cm: '25.3' }, { eu: '40.5', cm: '25.7' },
+    { eu: '41',   cm: '26.0' }, { eu: '41.5', cm: '26.3' },
+    { eu: '42',   cm: '26.7' }, { eu: '42.5', cm: '27.0' },
+    { eu: '43',   cm: '27.3' }, { eu: '43.5', cm: '27.7' },
+    { eu: '44',   cm: '28.0' }, { eu: '44.5', cm: '28.3' },
+    { eu: '45',   cm: '28.7' }, { eu: '45.5', cm: '29.0' },
+    { eu: '46',   cm: '29.3' }, { eu: '46.5', cm: '29.7' },
+    { eu: '47',   cm: '30.0' }
   ];
   const MEN_COLORS = [
     'Black', 'White', 'Navy Blue', 'Charcoal Gray', 'Light Gray',
