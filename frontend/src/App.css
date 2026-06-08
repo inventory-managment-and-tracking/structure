@@ -1539,6 +1539,238 @@
   }
 }
 
+/* ── Daily Staff Report (accordion, not printable) ─────────── */
+.daily-staff-report {
+  border-radius: 14px;
+  padding: 24px;
+  margin-top: 24px;
+}
+
+.daily-staff-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 20px;
+  flex-wrap: wrap;
+}
+
+.daily-staff-title {
+  font-size: 16px;
+  margin: 0 0 4px 0;
+  display: flex;
+  align-items: center;
+}
+
+.daily-staff-subtitle {
+  font-size: 12px;
+  color: var(--text-dim);
+  margin: 0;
+}
+
+.daily-staff-controls {
+  display: flex;
+  align-items: flex-end;
+  gap: 10px;
+}
+
+.daily-staff-date-field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.daily-staff-empty {
+  text-align: center;
+  color: var(--text-dim);
+  padding: 40px 16px;
+  font-size: 13px;
+}
+
+.daily-staff-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.daily-staff-item {
+  border: 1px solid var(--surface-border);
+  border-radius: 10px;
+  overflow: hidden;
+  background: var(--surface-light);
+}
+
+.daily-staff-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  padding: 14px 16px;
+  border: none;
+  background: transparent;
+  color: var(--text-main);
+  cursor: pointer;
+  text-align: left;
+  font-family: inherit;
+  font-size: 14px;
+  transition: background 0.15s ease;
+}
+
+.daily-staff-row:hover {
+  background: var(--surface-color);
+}
+
+.daily-staff-chevron {
+  color: var(--text-dim);
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+}
+
+.daily-staff-name {
+  font-weight: 700;
+  flex-shrink: 0;
+}
+
+.daily-staff-badges {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-left: auto;
+  justify-content: flex-end;
+}
+
+.daily-staff-badge {
+  font-size: 11px;
+  font-weight: 600;
+  padding: 4px 10px;
+  border-radius: 20px;
+  background: var(--surface-color);
+  border: 1px solid var(--surface-border);
+  color: var(--text-dim);
+  white-space: nowrap;
+}
+
+.daily-staff-badge-revenue {
+  color: var(--success-color);
+  border-color: rgba(16, 185, 129, 0.3);
+  background: var(--success-glow);
+}
+
+.daily-staff-badge-return {
+  color: var(--danger-color);
+  border-color: rgba(220, 38, 38, 0.3);
+  background: var(--danger-glow);
+}
+
+.daily-staff-detail {
+  padding: 0 16px 16px 46px;
+  border-top: 1px solid var(--surface-border);
+  background: var(--surface-color);
+}
+
+.daily-staff-section {
+  padding-top: 14px;
+}
+
+.daily-staff-section + .daily-staff-section {
+  margin-top: 4px;
+}
+
+.daily-staff-section-label {
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--text-dim);
+  margin-bottom: 8px;
+}
+
+.daily-staff-sale-group {
+  margin-bottom: 10px;
+}
+
+.daily-staff-sale-group:last-child {
+  margin-bottom: 0;
+}
+
+.daily-staff-sale-header {
+  display: flex;
+  justify-content: space-between;
+  margin-bottom: 4px;
+}
+
+.daily-staff-line {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 6px 0;
+  font-size: 13px;
+}
+
+.daily-staff-line-name {
+  flex: 1;
+  min-width: 0;
+}
+
+.daily-staff-line-sku {
+  font-size: 11px;
+  color: var(--text-dim);
+  margin-left: 6px;
+}
+
+.daily-staff-line-qty {
+  font-weight: 700;
+  font-size: 12px;
+  color: var(--text-dim);
+  flex-shrink: 0;
+}
+
+.daily-staff-line-amount {
+  font-weight: 700;
+  flex-shrink: 0;
+  min-width: 80px;
+  text-align: right;
+}
+
+.daily-staff-line-return .daily-staff-line-amount {
+  color: var(--danger-color);
+}
+
+.daily-staff-line-muted {
+  font-size: 12px;
+  color: var(--text-dim);
+  padding: 4px 0;
+}
+
+@media (max-width: 767px) {
+  .daily-staff-header {
+    flex-direction: column;
+  }
+
+  .daily-staff-controls {
+    width: 100%;
+  }
+
+  .daily-staff-date-field {
+    flex: 1;
+  }
+
+  .daily-staff-row {
+    flex-wrap: wrap;
+  }
+
+  .daily-staff-badges {
+    width: 100%;
+    margin-left: 30px;
+    justify-content: flex-start;
+  }
+
+  .daily-staff-detail {
+    padding-left: 16px;
+  }
+}
+
 /* ── PROFESSIONAL PDF PRINT STYLES ─────────────────────────── */
 @media print {
   /* Hide interactive layout parts */

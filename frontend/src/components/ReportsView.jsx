@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { AreaChart, Area, BarChart, Bar, PieChart, Pie, Cell, ResponsiveContainer, XAxis, YAxis, Tooltip, Legend } from 'recharts';
 import { TrendingUp, BarChart3, LineChart, PieChart as PieIcon, ShieldAlert, Award, Calendar, Printer, RefreshCw } from 'lucide-react';
 import { formatBirr } from '../utils/formatBirr';
+import DailyStaffReport from './DailyStaffReport';
 
 export default function ReportsView({ token, userRole }) {
   const [salesSummary, setSalesSummary] = useState(null);
@@ -437,6 +438,8 @@ export default function ReportsView({ token, userRole }) {
           </div>
         </div>
       </div>
+
+      <DailyStaffReport token={token} />
     </div>
   );
 }

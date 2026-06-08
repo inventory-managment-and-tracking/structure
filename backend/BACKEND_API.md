@@ -568,6 +568,8 @@ Read-only audit log. Every sale, restock, adjustment, and return writes here.
 | GET | `/api/reports/sales/summary` | owner, cashier | Total revenue, items sold |
 | GET | `/api/reports/sales/by-employee` | owner | Sales per staff member |
 | GET | `/api/reports/sales/by-product` | owner, cashier | Top products |
+| GET | `/api/reports/sales/trend` | owner, cashier | Daily revenue trend |
+| GET | `/api/reports/sales/daily-staff` | owner, cashier | Per-staff sales & returns for one day |
 | GET | `/api/reports/stock/history` | owner, cashier | Movement log with names |
 | GET | `/api/reports/stock/valuation` | owner | Stock value (cost vs retail) |
 | GET | `/api/reports/returns/summary` | owner, cashier | Returns breakdown |
@@ -575,6 +577,60 @@ Read-only audit log. Every sale, restock, adjustment, and return writes here.
 **Common query params:** `date_from`, `date_to` (where applicable)
 
 **GET `/api/reports/sales/by-product`:** optional `limit` (default 20)
+
+**GET `/api/reports/sales/daily-staff`:** required `date` (`YYYY-MM-DD`)
+
+Response:
+
+```json
+{
+  "success": true,
+  "data": {
+    "date": "2026-06-08",
+    "staff": [
+      {
+        "id": 2,
+        "full_name": "Jane Cashier",
+        "username": "jane",
+        "sales_count": 3,
+        "items_sold": 5,
+        "total_revenue": "4500.00",
+        "returns_count": 1,
+        "returns_qty": 1,
+        "total_refunded": "850.00",
+        "sales": [
+          {
+            "sale_id": 5,
+            "sale_code": "SALE-20260608-1234",
+            "created_at": "2026-06-08T14:30:00.000Z",
+            "total_amount": "1700.00",
+            "items": [
+              {
+                "product_name": "Men Blue Denim Jacket",
+                "product_sku": "CLT-20260601-0001",
+                "quantity": 2,
+                "unit_price": "850.00",
+                "subtotal": "1700.00"
+              }
+            ]
+          }
+        ],
+        "returns": [
+          {
+            "return_code": "RET-20260608-5678",
+            "product_name": "Men Blue Denim Jacket",
+            "quantity": 1,
+            "refund_amount": "850.00",
+            "created_at": "2026-06-08T16:00:00.000Z"
+          }
+        ]
+      }
+    ]
+  }
+}
+```
+
+Only staff with at least one sale or return on the given day are included.
 
 ---
 

@@ -10,6 +10,7 @@ router.get('/sales/summary',     authorize('owner', 'cashier'), ctrl.getSalesSum
 router.get('/sales/by-employee', authorize('owner'),            ctrl.getSalesByEmployee);
 router.get('/sales/by-product',  authorize('owner', 'cashier'), ctrl.getSalesByProduct);
 router.get('/sales/trend',       authorize('owner', 'cashier'), ctrl.getSalesTrend);
+router.get('/sales/daily-staff', authorize('owner', 'cashier'), ctrl.getDailyStaffActivity);
 router.get('/stock/history',     authorize('owner', 'cashier'), ctrl.getStockHistory);
 router.get('/stock/valuation',   authorize('owner'),            ctrl.getStockValuation);
 router.get('/returns/summary',   authorize('owner', 'cashier'), ctrl.getReturnsSummary);

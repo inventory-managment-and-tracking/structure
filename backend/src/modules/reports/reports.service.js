@@ -196,6 +196,134 @@ async function returnsSummary(filters = {}) {
   };
 }
 
+// ── Daily staff activity (sales + returns per user for one day) ─
+async function dailyStaffActivity(date) {
+  const dateFrom = `${date} 00:00:00`;
+  const dateTo   = `${date} 23:59:59`;
+
+  const [salesRows, returnRows] = await Promise.all([
+    pool.query(
+      `SELECT
+         u.id          AS user_id,
+         u.full_name,
+         u.username,
+         s.id          AS sale_id,
+         s.sale_code,
+         s.created_at  AS sale_created_at,
+         s.total_amount,
+         si.quantity,
+         si.unit_price,
+         si.subtotal,
+         p.name        AS product_name,
+         p.sku         AS product_sku
+       FROM sales s
+       JOIN users u ON u.id = s.sold_by
+       JOIN sale_items si ON si.sale_id = s.id
+       JOIN products p ON p.id = si.product_id
+       WHERE s.created_at >= $1 AND s.created_at <= $2
+       ORDER BY u.full_name, s.created_at, p.name`,
+      [dateFrom, dateTo]
+    ),
+    pool.query(
+      `SELECT
+         u.id          AS user_id,
+         u.full_name,
+         u.username,
+         r.id          AS return_id,
+         r.return_code,
+         r.created_at  AS return_created_at,
+         r.quantity,
+         r.refund_amount,
+         p.name        AS product_name,
+         p.sku         AS product_sku
+       FROM returns r
+       JOIN users u ON u.id = r.processed_by
+       JOIN products p ON p.id = r.product_id
+       WHERE r.created_at >= $1 AND r.created_at <= $2
+       ORDER BY u.full_name, r.created_at`,
+      [dateFrom, dateTo]
+    ),
+  ]);
+
+  const staffMap = new Map();
+
+  function ensureStaff(row) {
+    if (!staffMap.has(row.user_id)) {
+      staffMap.set(row.user_id, {
+        id: row.user_id,
+        full_name: row.full_name,
+        username: row.username,
+        sales_count: 0,
+        items_sold: 0,
+        total_revenue: 0,
+        returns_count: 0,
+        returns_qty: 0,
+        total_refunded: 0,
+        sales: [],
+        returns: [],
+        _saleIds: new Set(),
+      });
+    }
+    return staffMap.get(row.user_id);
+  }
+
+  for (const row of salesRows.rows) {
+    const staff = ensureStaff(row);
+    let sale = staff.sales.find((s) => s.sale_id === row.sale_id);
+    if (!sale) {
+      sale = {
+        sale_id: row.sale_id,
+        sale_code: row.sale_code,
+        created_at: row.sale_created_at,
+        total_amount: row.total_amount,
+        items: [],
+      };
+      staff.sales.push(sale);
+      staff._saleIds.add(row.sale_id);
+      staff.sales_count += 1;
+      staff.total_revenue += parseFloat(row.total_amount || 0);
+    }
+    staff.items_sold += parseInt(row.quantity, 10);
+    sale.items.push({
+      product_name: row.product_name,
+      product_sku: row.product_sku,
+      quantity: row.quantity,
+      unit_price: row.unit_price,
+      subtotal: row.subtotal,
+    });
+  }
+
+  for (const row of returnRows.rows) {
+    const staff = ensureStaff(row);
+    staff.returns_count += 1;
+    staff.returns_qty += parseInt(row.quantity, 10);
+    staff.total_refunded += parseFloat(row.refund_amount || 0);
+    staff.returns.push({
+      return_code: row.return_code,
+      product_name: row.product_name,
+      product_sku: row.product_sku,
+      quantity: row.quantity,
+      refund_amount: row.refund_amount,
+      created_at: row.return_created_at,
+    });
+  }
+
+  const staff = Array.from(staffMap.values())
+    .filter((s) => s.sales_count > 0 || s.returns_count > 0)
+    .map(({ _saleIds, total_revenue, total_refunded, ...rest }) => ({
+      ...rest,
+      total_revenue: total_revenue.toFixed(2),
+      total_refunded: total_refunded.toFixed(2),
+    }))
+    .sort((a, b) => {
+      const revDiff = parseFloat(b.total_revenue) - parseFloat(a.total_revenue);
+      if (revDiff !== 0) return revDiff;
+      return (a.full_name || '').localeCompare(b.full_name || '');
+    });
+
+  return { date, staff };
+}
+
 // ── Sales trend (daily aggregation) ───────────────────────────
 async function salesTrend(filters = {}) {
   const { conds, values } = dateFilter(filters, 's');
@@ -220,5 +348,6 @@ async function salesTrend(filters = {}) {
 module.exports = {
   salesSummary, salesByEmployee, salesByProduct,
   stockHistory, stockValuation, returnsSummary, salesTrend,
+  dailyStaffActivity,
 };
 
