@@ -15,7 +15,7 @@ router.get('/:id', ctrl.getOne);
 
 router.post(
   '/',
-  authorize('owner', 'manager'),
+  authorize('owner', 'cashier'),
   [
     body('name').trim().notEmpty().withMessage('Product name is required'),
     body('unit_price').isFloat({ gt: 0 }).withMessage('Unit price must be > 0'),
@@ -30,7 +30,7 @@ router.post(
 
 router.patch(
   '/:id',
-  authorize('owner', 'manager'),
+  authorize('owner', 'cashier'),
   [
     body('name').optional().trim().notEmpty(),
     body('unit_price').optional().isFloat({ gt: 0 }),
@@ -42,7 +42,7 @@ router.patch(
 
 router.patch(
   '/:id/adjust-stock',
-  authorize('owner', 'manager'),
+  authorize('owner', 'cashier'),
   [
     body('quantity_change')
       .isInt()

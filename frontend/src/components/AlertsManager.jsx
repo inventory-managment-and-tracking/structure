@@ -48,7 +48,7 @@ export default function AlertsManager({ token, userRole, refreshTrigger }) {
     }
   };
 
-  const isRestricted = userRole === 'cashier';
+  const isRestricted = userRole === 'sales';
 
   return (
     <div className="animate-fade">
@@ -153,7 +153,7 @@ export default function AlertsManager({ token, userRole, refreshTrigger }) {
                         Mark Resolved
                       </button>
                     ) : (
-                      <span className="badge-ui red" style={{ fontSize: '10px' }}>Manager Action Required</span>
+                      <span className="badge-ui red" style={{ fontSize: '10px' }}>Cashier Action Required</span>
                     )}
                   </div>
                 )}

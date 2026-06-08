@@ -12,14 +12,14 @@ router.get('/:id', ctrl.getOne);
 
 router.post(
   '/',
-  authorize('owner', 'manager'),
+  authorize('owner', 'cashier'),
   [body('name').trim().notEmpty().withMessage('Category name is required')],
   ctrl.create
 );
 
 router.patch(
   '/:id',
-  authorize('owner', 'manager'),
+  authorize('owner', 'cashier'),
   [body('name').optional().trim().notEmpty()],
   ctrl.update
 );

@@ -12,7 +12,7 @@ Documentation for frontend developers. This backend powers the **ClothTrack** cl
 | Schema + seed SQL | Done | `src/db/schema.sql`, `src/db/seed.sql` |
 | Node.js + Express API | Done | Modular routes under `src/modules/` |
 | JWT authentication | Done | Login, logout, `/me` |
-| Role-based access | Done | `owner`, `manager`, `cashier` |
+| Role-based access | Done | `owner`, `cashier`, `sales` |
 | Users (staff) CRUD | Done | Owner manages accounts |
 | Categories & suppliers | Done | Full CRUD |
 | Products + SKU auto-generate | Done | Format: `CLT-YYYYMMDD-0001` |
@@ -46,6 +46,7 @@ Documentation for frontend developers. This backend powers the **ClothTrack** cl
 cd backend
 npm install
 # Ensure PostgreSQL is running and schema/seed are applied
+# Existing DBs with old roles (manager/cashier): npm run db:migrate-roles
 npm run dev
 ```
 
@@ -70,8 +71,8 @@ Authorization: Bearer <your_jwt_token>
 | Role | Typical use |
 |------|-------------|
 | `owner` | Full access, reports, delete, user management |
-| `manager` | Products, stock, sales list, most CRUD |
-| `cashier` | POS sales, returns, product lookup, QR |
+| `cashier` | Products, stock, sales list, most CRUD |
+| `sales` | POS sales, returns, product lookup, QR |
 
 If a route requires a role you do not have, the API returns **403**.
 
@@ -242,8 +243,8 @@ Legend:
 
 | Method | Endpoint | Roles | Description |
 |--------|----------|-------|-------------|
-| GET | `/api/users` | owner, manager | List all staff |
-| GET | `/api/users/:id` | owner, manager | Get one user |
+| GET | `/api/users` | owner, cashier | List all staff |
+| GET | `/api/users/:id` | owner, cashier | Get one user |
 | POST | `/api/users` | owner | Create staff account |
 | PATCH | `/api/users/:id` | owner | Update name, username, role, is_active |
 | PATCH | `/api/users/:id/password` | owner | Reset password |
@@ -256,11 +257,11 @@ Legend:
   "full_name": "Jane Cashier",
   "username": "jane",
   "password": "secret123",
-  "role": "cashier"
+  "role": "sales"
 }
 ```
 
-`role`: `owner` | `manager` | `cashier`
+`role`: `owner` | `cashier` | `sales`
 
 ---
 
@@ -270,8 +271,8 @@ Legend:
 |--------|----------|-------|-------------|
 | GET | `/api/categories` | any | List categories (+ product count) |
 | GET | `/api/categories/:id` | any | One category |
-| POST | `/api/categories` | owner, manager | Create |
-| PATCH | `/api/categories/:id` | owner, manager | Update |
+| POST | `/api/categories` | owner, cashier | Create |
+| PATCH | `/api/categories/:id` | owner, cashier | Update |
 | DELETE | `/api/categories/:id` | owner | Delete (only if no active products) |
 
 **POST body:**
@@ -291,8 +292,8 @@ Legend:
 |--------|----------|-------|-------------|
 | GET | `/api/suppliers` | any | List suppliers (+ product count) |
 | GET | `/api/suppliers/:id` | any | One supplier |
-| POST | `/api/suppliers` | owner, manager | Create |
-| PATCH | `/api/suppliers/:id` | owner, manager | Update |
+| POST | `/api/suppliers` | owner, cashier | Create |
+| PATCH | `/api/suppliers/:id` | owner, cashier | Update |
 | DELETE | `/api/suppliers/:id` | owner | Delete (only if no active products) |
 
 **POST body:**
@@ -316,9 +317,9 @@ Legend:
 | GET | `/api/products` | any | List products (filters below) |
 | GET | `/api/products/sku/:sku` | any | **QR scan** — lookup by SKU |
 | GET | `/api/products/:id` | any | One product (full detail) |
-| POST | `/api/products` | owner, manager | Create product |
-| PATCH | `/api/products/:id` | owner, manager | Update product info |
-| PATCH | `/api/products/:id/adjust-stock` | owner, manager | Manual stock in/out |
+| POST | `/api/products` | owner, cashier | Create product |
+| PATCH | `/api/products/:id` | owner, cashier | Update product info |
+| PATCH | `/api/products/:id/adjust-stock` | owner, cashier | Manual stock in/out |
 | DELETE | `/api/products/:id` | owner | Soft delete (is_active = false) |
 
 **GET `/api/products` — query params:**
@@ -372,7 +373,7 @@ Read-only audit log. Every sale, restock, adjustment, and return writes here.
 
 | Method | Endpoint | Roles | Description |
 |--------|----------|-------|-------------|
-| GET | `/api/stock` | owner, manager | Full history (filters below) |
+| GET | `/api/stock` | owner, cashier | Full history (filters below) |
 | GET | `/api/stock/product/:productId` | any | History for one product |
 
 **GET `/api/stock` — query params:**
@@ -391,7 +392,7 @@ Read-only audit log. Every sale, restock, adjustment, and return writes here.
 
 | Method | Endpoint | Roles | Description |
 |--------|----------|-------|-------------|
-| GET | `/api/sales` | owner, manager | List sales |
+| GET | `/api/sales` | owner, cashier | List sales |
 | GET | `/api/sales/:id` | any | Sale detail + line items |
 | POST | `/api/sales` | any | **Complete checkout** |
 
@@ -428,7 +429,7 @@ Read-only audit log. Every sale, restock, adjustment, and return writes here.
 
 | Method | Endpoint | Roles | Description |
 |--------|----------|-------|-------------|
-| GET | `/api/returns` | owner, manager | List returns |
+| GET | `/api/returns` | owner, cashier | List returns |
 | GET | `/api/returns/:id` | any | One return |
 | POST | `/api/returns` | any | Process a return |
 
@@ -463,8 +464,8 @@ Read-only audit log. Every sale, restock, adjustment, and return writes here.
 | Method | Endpoint | Roles | Description |
 |--------|----------|-------|-------------|
 | GET | `/api/alerts` | any | Unresolved alerts only |
-| GET | `/api/alerts/all` | owner, manager | All alerts (incl. resolved) |
-| PATCH | `/api/alerts/:id/resolve` | owner, manager | Mark alert resolved |
+| GET | `/api/alerts/all` | owner, cashier | All alerts (incl. resolved) |
+| PATCH | `/api/alerts/:id/resolve` | owner, cashier | Mark alert resolved |
 
 **GET `/api/alerts/all` — query params:** `product_id`, `date_from`, `date_to`
 
@@ -475,7 +476,7 @@ Read-only audit log. Every sale, restock, adjustment, and return writes here.
 | Method | Endpoint | Roles | Description |
 |--------|----------|-------|-------------|
 | POST | `/api/qr/generate/:productId` | any | Generate QR image + log print |
-| GET | `/api/qr/log/product/:productId` | owner, manager | Print history |
+| GET | `/api/qr/log/product/:productId` | owner, cashier | Print history |
 
 **POST body (optional):**
 
@@ -500,12 +501,12 @@ Read-only audit log. Every sale, restock, adjustment, and return writes here.
 
 | Method | Endpoint | Roles | Description |
 |--------|----------|-------|-------------|
-| GET | `/api/reports/sales/summary` | owner, manager | Total revenue, items sold |
+| GET | `/api/reports/sales/summary` | owner, cashier | Total revenue, items sold |
 | GET | `/api/reports/sales/by-employee` | owner | Sales per staff member |
-| GET | `/api/reports/sales/by-product` | owner, manager | Top products |
-| GET | `/api/reports/stock/history` | owner, manager | Movement log with names |
+| GET | `/api/reports/sales/by-product` | owner, cashier | Top products |
+| GET | `/api/reports/stock/history` | owner, cashier | Movement log with names |
 | GET | `/api/reports/stock/valuation` | owner | Stock value (cost vs retail) |
-| GET | `/api/reports/returns/summary` | owner, manager | Returns breakdown |
+| GET | `/api/reports/returns/summary` | owner, cashier | Returns breakdown |
 
 **Common query params:** `date_from`, `date_to` (where applicable)
 
@@ -555,7 +556,7 @@ Or use positive `quantity_change` on adjust-stock; alerts may auto-resolve when 
 POST /api/returns { product_id, quantity, reason, condition, refund_type, ... }
 ```
 
-### 6. Dashboard / reports (owner/manager)
+### 6. Dashboard / reports (owner/cashier)
 
 ```
 GET /api/reports/sales/summary?date_from=...&date_to=...
@@ -567,7 +568,7 @@ GET /api/alerts
 
 ## Enum Values (For Forms & Dropdowns)
 
-**User role:** `owner`, `manager`, `cashier`
+**User role:** `owner`, `cashier`, `sales`
 
 **Payment method:** `cash`, `card`, `mobile_money`, `other`
 

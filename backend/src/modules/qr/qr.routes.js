@@ -16,6 +16,6 @@ router.post(
   ctrl.generate
 );
 
-router.get('/log/product/:productId', authorize('owner', 'manager'), ctrl.getLog);
+router.get('/log/product/:productId', authorize('owner', 'cashier'), ctrl.getLog);
 
 module.exports = router;

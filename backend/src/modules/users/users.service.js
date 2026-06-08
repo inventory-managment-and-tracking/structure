@@ -39,7 +39,7 @@ async function createUser({ full_name, username, password, role }) {
     `INSERT INTO users (full_name, username, password_hash, role)
      VALUES ($1, $2, $3, $4)
      RETURNING ${SAFE_FIELDS}`,
-    [full_name, username, password_hash, role || 'cashier']
+    [full_name, username, password_hash, role || 'sales']
   );
   return rows[0];
 }

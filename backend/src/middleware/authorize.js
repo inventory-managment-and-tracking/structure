@@ -3,7 +3,7 @@
 /**
  * Role-based access guard.
  * Usage: router.delete('/:id', authorize('owner'), controller.delete)
- *        router.post('/',      authorize('owner', 'manager'), controller.create)
+ *        router.post('/',      authorize('owner', 'cashier'), controller.create)
  */
 function authorize(...allowedRoles) {
   return (req, res, next) => {

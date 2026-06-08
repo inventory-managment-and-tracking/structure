@@ -265,7 +265,7 @@ export default function ProductList({ token, userRole, addToCart, onStockAdjuste
     }
   };
 
-  const isRestricted = userRole === 'cashier';
+  const isRestricted = userRole === 'sales';
 
   return (
     <div className="animate-fade">

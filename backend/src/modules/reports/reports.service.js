@@ -46,7 +46,7 @@ async function salesByEmployee(filters = {}) {
      FROM users u
      LEFT JOIN sales      s  ON s.sold_by   = u.id ${where ? `AND ${conds.join(' AND ')}` : ''}
      LEFT JOIN sale_items si ON si.sale_id  = s.id
-     WHERE u.role IN ('owner', 'manager', 'cashier')
+     WHERE u.role IN ('owner', 'cashier', 'sales')
      GROUP BY u.id, u.full_name, u.username
      ORDER BY total_revenue DESC`,
     values
@@ -196,7 +196,29 @@ async function returnsSummary(filters = {}) {
   };
 }
 
+// ── Sales trend (daily aggregation) ───────────────────────────
+async function salesTrend(filters = {}) {
+  const { conds, values } = dateFilter(filters, 's');
+  const where = conds.length ? `WHERE ${conds.join(' AND ')}` : '';
+
+  const { rows } = await pool.query(
+    `SELECT
+       TO_CHAR(s.created_at, 'YYYY-MM-DD') AS date,
+       COALESCE(SUM(s.total_amount), 0)::numeric(12,2) AS revenue,
+       COUNT(DISTINCT s.id)::int AS sales_count,
+       COALESCE(SUM(si.quantity), 0)::int AS items_sold
+     FROM sales s
+     LEFT JOIN sale_items si ON si.sale_id = s.id
+     ${where}
+     GROUP BY TO_CHAR(s.created_at, 'YYYY-MM-DD')
+     ORDER BY date ASC`,
+    values
+  );
+  return rows;
+}
+
 module.exports = {
   salesSummary, salesByEmployee, salesByProduct,
-  stockHistory, stockValuation, returnsSummary,
+  stockHistory, stockValuation, returnsSummary, salesTrend,
 };
+

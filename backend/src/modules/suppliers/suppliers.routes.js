@@ -12,7 +12,7 @@ router.get('/:id', ctrl.getOne);
 
 router.post(
   '/',
-  authorize('owner', 'manager'),
+  authorize('owner', 'cashier'),
   [
     body('name').trim().notEmpty().withMessage('Supplier name is required'),
     body('email').optional().isEmail().withMessage('Invalid email'),
@@ -22,7 +22,7 @@ router.post(
 
 router.patch(
   '/:id',
-  authorize('owner', 'manager'),
+  authorize('owner', 'cashier'),
   [
     body('name').optional().trim().notEmpty(),
     body('email').optional().isEmail(),

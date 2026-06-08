@@ -5,19 +5,27 @@ import POSCart from './components/POSCart';
 import ProductList from './components/ProductList';
 import ReportsView from './components/ReportsView';
 import AlertsManager from './components/AlertsManager';
+import UsersManager from './components/UsersManager';
 
 // Lucide Icons
 import { 
   LayoutDashboard, ShoppingCart, Shirt, BarChart3, AlertCircle, LogOut, 
-  User, RefreshCw, AlertTriangle, ShieldAlert, Award, TrendingUp, Search
+  User, RefreshCw, AlertTriangle, ShieldAlert, Award, TrendingUp, Search, Users
 } from 'lucide-react';
+
+const ROLE_LABELS = {
+  owner: 'Owner',
+  cashier: 'Cashier',
+  sales: 'Sales',
+  manager: 'Cashier', // legacy DB value — run npm run db:migrate-roles
+};
 
 export default function App() {
   const [token, setToken] = useState(localStorage.getItem('token') || '');
   const [user, setUser] = useState(JSON.parse(localStorage.getItem('user')) || null);
   const [activeTab, setActiveTab] = useState(() => {
     const savedUser = JSON.parse(localStorage.getItem('user'));
-    return savedUser?.role === 'cashier' ? 'pos' : 'dashboard';
+    return savedUser?.role === 'sales' ? 'pos' : 'dashboard';
   });
   const [refreshAlerts, setRefreshAlerts] = useState(0);
 
@@ -126,6 +134,7 @@ export default function App() {
 
       setToken(jwtToken);
       setUser(userProfile);
+      setActiveTab(userProfile.role === 'sales' ? 'pos' : 'dashboard');
     } catch (err) {
       console.error('[LOGIN ERR]', err);
       setLoginError(err.message || 'Failed to login');
@@ -247,8 +256,9 @@ export default function App() {
     );
   }
 
-  const role = user?.role || 'cashier';
-  const isEmployee = role === 'cashier';
+  const role = user?.role || 'sales';
+  const isSales = role === 'sales';
+  const isOwner = role === 'owner';
 
   return (
     <div className="app-container">
@@ -260,7 +270,7 @@ export default function App() {
         </div>
 
         <nav className="nav-links">
-          {!isEmployee && (
+          {!isSales && (
             <button
               onClick={() => setActiveTab('dashboard')}
               className={`nav-item ${activeTab === 'dashboard' ? 'active' : ''}`}
@@ -283,12 +293,21 @@ export default function App() {
             <Shirt size={18} /> Inventory Catalog
           </button>
 
-          {!isEmployee && (
+          {!isSales && (
             <button
               onClick={() => setActiveTab('reports')}
               className={`nav-item ${activeTab === 'reports' ? 'active' : ''}`}
             >
               <BarChart3 size={18} /> Reports & Charts
+            </button>
+          )}
+
+          {isOwner && (
+            <button
+              onClick={() => setActiveTab('users')}
+              className={`nav-item ${activeTab === 'users' ? 'active' : ''}`}
+            >
+              <Users size={18} /> Staff Management
             </button>
           )}
 
@@ -315,7 +334,7 @@ export default function App() {
             </div>
             <div className="user-info">
               <span className="user-name">{user?.full_name}</span>
-              <span className="user-role">{user?.role}</span>
+              <span className="user-role">{ROLE_LABELS[user?.role] || user?.role}</span>
             </div>
           </div>
           <button onClick={handleLogout} className="logout-btn" title="Sign Out">
@@ -326,7 +345,7 @@ export default function App() {
 
       {/* 2. MOBILE NAVBAR (Tab bar) */}
       <nav className="mobile-nav">
-        {!isEmployee && (
+        {!isSales && (
           <button onClick={() => setActiveTab('dashboard')} className={`mobile-nav-item ${activeTab === 'dashboard' ? 'active' : ''}`}>
             <LayoutDashboard size={20} />
             <span>Dashboard</span>
@@ -343,10 +362,17 @@ export default function App() {
           <span>Catalog</span>
         </button>
 
-        {!isEmployee && (
+        {!isSales && (
           <button onClick={() => setActiveTab('reports')} className={`mobile-nav-item ${activeTab === 'reports' ? 'active' : ''}`}>
             <BarChart3 size={20} />
             <span>Reports</span>
+          </button>
+        )}
+
+        {isOwner && (
+          <button onClick={() => setActiveTab('users')} className={`mobile-nav-item ${activeTab === 'users' ? 'active' : ''}`}>
+            <Users size={20} />
+            <span>Staff</span>
           </button>
         )}
 
@@ -383,7 +409,7 @@ export default function App() {
         )}
 
         {/* Tab View 1: Dashboard overview */}
-        {activeTab === 'dashboard' && !isEmployee && (
+        {activeTab === 'dashboard' && !isSales && (
           <div className="animate-fade">
             <div className="page-header">
               <div className="page-title-section">
@@ -464,14 +490,18 @@ export default function App() {
               </div>
 
               <div className="bg-glass" style={{ padding: '24px', borderRadius: '14px' }}>
-                <h3 style={{ fontSize: '16px', marginBottom: '8px' }}>📝 Default Staff Credentials</h3>
-                <p style={{ fontSize: '13px', color: 'var(--text-muted)' }}>
-                  System seed user login parameters for testing other operations:
+                <h3 style={{ fontSize: '16px', marginBottom: '8px' }}>👥 Staff Accounts</h3>
+                <p style={{ fontSize: '13px', color: 'var(--text-muted)', marginBottom: '12px' }}>
+                  Create Cashier, Sales, or Owner accounts with login credentials. Each role gets access to the appropriate parts of the system.
                 </p>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', fontSize: '12px', marginTop: '12px' }}>
-                  <div>• Role <strong>Owner / Manager</strong>: username <code>admin</code> / password <code>admin123</code></div>
-                  <div>• Role <strong>Cashier</strong>: Add a custom cashier user in the database or via staff CRUD!</div>
+                <div style={{ fontSize: '12px', color: 'var(--text-dim)', marginBottom: '16px' }}>
+                  Initial owner login: <code>admin</code> / <code>admin123</code>
                 </div>
+                {isOwner && (
+                  <button onClick={() => setActiveTab('users')} className="btn-primary" style={{ fontSize: '13px' }}>
+                    Manage Staff →
+                  </button>
+                )}
               </div>
             </div>
           </div>
@@ -557,7 +587,7 @@ export default function App() {
         )}
 
         {/* Tab View 4: Reports charts and valuation dashboard */}
-        {activeTab === 'reports' && !isEmployee && (
+        {activeTab === 'reports' && !isSales && (
           <ReportsView 
             token={token}
             userRole={role}
@@ -571,6 +601,11 @@ export default function App() {
             userRole={role}
             refreshTrigger={refreshAlerts}
           />
+        )}
+
+        {/* Tab View 6: Owner staff management */}
+        {activeTab === 'users' && isOwner && (
+          <UsersManager token={token} currentUserId={user.id} />
         )}
 
       </main>

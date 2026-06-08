@@ -38,7 +38,13 @@ async function getReturnsSummary(req, res, next) {
   } catch (err) { next(err); }
 }
 
+async function getSalesTrend(req, res, next) {
+  try {
+    res.json({ success: true, data: await svc.salesTrend(req.query) });
+  } catch (err) { next(err); }
+}
+
 module.exports = {
   getSalesSummary, getSalesByEmployee, getSalesByProduct,
-  getStockHistory, getStockValuation, getReturnsSummary,
+  getStockHistory, getStockValuation, getReturnsSummary, getSalesTrend,
 };
