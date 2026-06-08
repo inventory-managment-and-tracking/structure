@@ -6,11 +6,12 @@ import ProductList from './components/ProductList';
 import ReportsView from './components/ReportsView';
 import AlertsManager from './components/AlertsManager';
 import UsersManager from './components/UsersManager';
+import Dashboard from './components/Dashboard';
 
 // Lucide Icons
 import { 
   LayoutDashboard, ShoppingCart, Shirt, BarChart3, AlertCircle, LogOut, 
-  User, RefreshCw, AlertTriangle, ShieldAlert, Award, TrendingUp, Search, Users
+  User, AlertTriangle, ShieldAlert, Search, Users
 } from 'lucide-react';
 
 const ROLE_LABELS = {
@@ -410,101 +411,16 @@ export default function App() {
 
         {/* Tab View 1: Dashboard overview */}
         {activeTab === 'dashboard' && !isSales && (
-          <div className="animate-fade">
-            <div className="page-header">
-              <div className="page-title-section">
-                <h2 className="page-title">Management Console</h2>
-                <p className="page-description">Quick statistics and operational indexes overview</p>
-              </div>
-              <button 
-                onClick={fetchDashboardStats} 
-                className="btn-secondary" 
-                style={{ padding: '12px' }}
-                title="Refresh dashboard stats"
-              >
-                <RefreshCw size={14} />
-              </button>
-            </div>
-
-            {/* Dashboard widgets */}
-            <div className="metrics-grid">
-              <div className="metric-card bg-glass">
-                <div className="metric-header">
-                  <span className="metric-title">Gross Revenue</span>
-                  <div className="metric-icon-wrapper" style={{ background: 'var(--primary-glow)', color: 'var(--primary-color)' }}>
-                    <TrendingUp size={18} />
-                  </div>
-                </div>
-                <div className="metric-value text-gold">${parseFloat(dbSalesSummary?.total_revenue || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</div>
-                <div className="metric-sub">Across {dbSalesSummary?.total_sales || 0} POS checkout tickets</div>
-              </div>
-
-              <div className="metric-card bg-glass">
-                <div className="metric-header">
-                  <span className="metric-title">Catalog Inventory Size</span>
-                  <div className="metric-icon-wrapper" style={{ background: 'rgba(59, 130, 246, 0.15)', color: '#3b82f6' }}>
-                    <Shirt size={18} />
-                  </div>
-                </div>
-                <div className="metric-value">{dbStockSummary?.total_units || 0} units</div>
-                <div className="metric-sub">Currently registered stock shelf assets</div>
-              </div>
-
-              <div className="metric-card bg-glass">
-                <div className="metric-header">
-                  <span className="metric-title">Warehouse Worth (Retail)</span>
-                  <div className="metric-icon-wrapper" style={{ background: 'var(--success-glow)', color: 'var(--success-color)' }}>
-                    <Award size={18} />
-                  </div>
-                </div>
-                <div className="metric-value" style={{ color: 'var(--success-color)' }}>
-                  ${parseFloat(dbStockSummary?.total_retail_value || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                </div>
-                <div className="metric-sub">Expected sales asset cash conversion</div>
-              </div>
-
-              <div className="metric-card bg-glass">
-                <div className="metric-header">
-                  <span className="metric-title">Active Alert Warnings</span>
-                  <div className="metric-icon-wrapper" style={{ background: activeAlertsCount > 0 ? 'var(--danger-glow)' : 'var(--success-glow)', color: activeAlertsCount > 0 ? 'var(--danger-color)' : 'var(--success-color)' }}>
-                    <AlertCircle size={18} />
-                  </div>
-                </div>
-                <div className="metric-value" style={{ color: activeAlertsCount > 0 ? 'var(--danger-color)' : 'var(--success-color)' }}>
-                  {activeAlertsCount} Warning{activeAlertsCount !== 1 ? 's' : ''}
-                </div>
-                <div className="metric-sub">{activeAlertsCount > 0 ? 'Urgent catalog replenishment required' : 'Product shelf counts healthy'}</div>
-              </div>
-            </div>
-
-            {/* Quick dashboard operations card info */}
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '24px', flexWrap: 'wrap', marginTop: '24px' }}>
-              <div className="bg-glass" style={{ padding: '24px', borderRadius: '14px' }}>
-                <h3 style={{ fontSize: '16px', marginBottom: '8px' }}>🚀 Quick POS Checkout Launch</h3>
-                <p style={{ fontSize: '13px', color: 'var(--text-muted)', marginBottom: '16px' }}>
-                  Need to process a quick checkout or scan tags? Fire up the POS cashier terminal interface optimized for phone cameras.
-                </p>
-                <button onClick={() => setActiveTab('pos')} className="btn-primary" style={{ fontSize: '13px' }}>
-                  Open POS terminal →
-                </button>
-              </div>
-
-              <div className="bg-glass" style={{ padding: '24px', borderRadius: '14px' }}>
-                <h3 style={{ fontSize: '16px', marginBottom: '8px' }}>👥 Staff Accounts</h3>
-                <p style={{ fontSize: '13px', color: 'var(--text-muted)', marginBottom: '12px' }}>
-                  Create Cashier, Sales, or Owner accounts with login credentials. Each role gets access to the appropriate parts of the system.
-                </p>
-                <div style={{ fontSize: '12px', color: 'var(--text-dim)', marginBottom: '16px' }}>
-                  Initial owner login: <code>admin</code> / <code>admin123</code>
-                </div>
-                {isOwner && (
-                  <button onClick={() => setActiveTab('users')} className="btn-primary" style={{ fontSize: '13px' }}>
-                    Manage Staff →
-                  </button>
-                )}
-              </div>
-            </div>
-          </div>
+          <Dashboard
+            user={user}
+            dbSalesSummary={dbSalesSummary}
+            dbStockSummary={dbStockSummary}
+            dbLoading={dbLoading}
+            activeAlertsCount={activeAlertsCount}
+            isOwner={isOwner}
+            onRefresh={fetchDashboardStats}
+            onNavigate={setActiveTab}
+          />
         )}
 
         {/* Tab View 2: POS Cashier checkout with QR scanner support */}

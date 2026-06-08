@@ -112,7 +112,7 @@ export default function QRScanner({ onScanSuccess, onScanError }) {
   return (
     <div className="pos-scanner-container bg-glass animate-fade" style={{ padding: '24px', borderRadius: '14px' }}>
       {/* Header row */}
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
+      <div className="scanner-header-row stack-on-mobile" style={{ justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
         <div>
           <h3 style={{ fontSize: '16px', fontWeight: '700' }}>QR Code Scanner</h3>
           <p style={{ fontSize: '12px', color: 'var(--text-muted)' }}>Scan product label using the phone's back camera</p>

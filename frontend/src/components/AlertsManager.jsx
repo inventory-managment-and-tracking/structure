@@ -52,12 +52,12 @@ export default function AlertsManager({ token, userRole, refreshTrigger }) {
 
   return (
     <div className="animate-fade">
-      <div className="page-header">
+      <div className="page-header page-header-actions">
         <div className="page-title-section">
           <h2 className="page-title">Low Stock Alert Center</h2>
           <p className="page-description">Real-time alerts triggered when shelf catalog inventory levels drop at or below configured thresholds</p>
         </div>
-        <div className="header-actions">
+        <div className="header-actions stack-on-mobile">
           <button 
             onClick={() => setShowResolved(!showResolved)} 
             className="btn-secondary"
@@ -99,20 +99,9 @@ export default function AlertsManager({ token, userRole, refreshTrigger }) {
             return (
               <div 
                 key={alertItem.id} 
-                className="animate-fade"
-                style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'space-between',
-                  padding: '20px',
-                  background: isRes ? 'rgba(16, 185, 129, 0.04)' : 'rgba(239, 68, 68, 0.04)',
-                  border: `1px solid ${isRes ? 'rgba(16, 185, 129, 0.15)' : 'rgba(239, 68, 68, 0.18)'}`,
-                  borderRadius: '12px',
-                  flexWrap: 'wrap',
-                  gap: '16px'
-                }}
+                className={`animate-fade alert-card ${isRes ? 'alert-card-resolved' : 'alert-card-active'}`}
               >
-                <div style={{ display: 'flex', alignItems: 'center', gap: '16px', minWidth: '240px' }}>
+                <div className="alert-card-main">
                   {isRes ? (
                     <div style={{ color: 'var(--success-color)', background: 'var(--success-glow)', padding: '8px', borderRadius: '50%' }}>
                       <CheckCircle2 size={20} />
@@ -129,7 +118,7 @@ export default function AlertsManager({ token, userRole, refreshTrigger }) {
                       <span className="mono" style={{ fontSize: '11px', color: 'var(--text-dim)', letterSpacing: '0.05em' }}>[{alertItem.product_sku}]</span>
                     </h4>
                     
-                    <div style={{ display: 'flex', gap: '16px', fontSize: '12px', color: 'var(--text-muted)', marginTop: '4px' }}>
+                    <div className="alert-card-stats stack-on-mobile">
                       <span>Alert Quantity: <strong className="mono" style={{ color: 'var(--danger-color)' }}>{alertItem.quantity_at_alert}</strong></span>
                       <span>Warning Threshold: <strong className="mono">{alertItem.threshold}</strong></span>
                       <span>Current Inventory: <strong className="mono" style={{ color: isRes ? 'var(--success-color)' : 'var(--danger-color)' }}>{alertItem.current_quantity ?? alertItem.quantity_at_alert}</strong></span>

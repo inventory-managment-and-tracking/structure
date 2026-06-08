@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { AreaChart, Area, BarChart, Bar, PieChart, Pie, Cell, ResponsiveContainer, XAxis, YAxis, Tooltip, Legend } from 'recharts';
 import { TrendingUp, BarChart3, LineChart, PieChart as PieIcon, ShieldAlert, Award, Calendar, Printer, RefreshCw } from 'lucide-react';
+import { formatBirr } from '../utils/formatBirr';
 
 export default function ReportsView({ token, userRole }) {
   const [salesSummary, setSalesSummary] = useState(null);
@@ -128,12 +129,12 @@ export default function ReportsView({ token, userRole }) {
         </p>
       </div>
 
-      <div className="page-header">
+      <div className="page-header page-header-actions">
         <div className="page-title-section">
           <h2 className="page-title">Analytics & Valuation</h2>
           <p className="page-description">Real-time reports, financial asset valuations and customer behavior audits</p>
         </div>
-        <div className="header-actions">
+        <div className="header-actions stack-on-mobile">
           <button 
             onClick={handlePrint} 
             className="btn-primary" 
@@ -154,8 +155,8 @@ export default function ReportsView({ token, userRole }) {
       </div>
 
       {/* Date Filter & Control Panel */}
-      <div className="inventory-filters-panel bg-glass no-print" style={{ padding: '20px', borderRadius: '14px', gap: '20px', marginBottom: '24px' }}>
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', flex: 1, minWidth: '150px' }}>
+      <div className="inventory-filters-panel reports-filter-grid bg-glass no-print">
+        <div className="reports-filter-field">
           <label className="form-label" style={{ margin: 0 }}>Select Range Preset</label>
           <select 
             value={preset} 
@@ -169,7 +170,7 @@ export default function ReportsView({ token, userRole }) {
           </select>
         </div>
 
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', width: '180px' }}>
+        <div className="reports-filter-field">
           <label className="form-label" style={{ margin: 0 }}>Start Date</label>
           <input 
             type="date" 
@@ -182,7 +183,7 @@ export default function ReportsView({ token, userRole }) {
           />
         </div>
 
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', width: '180px' }}>
+        <div className="reports-filter-field">
           <label className="form-label" style={{ margin: 0 }}>End Date</label>
           <input 
             type="date" 
@@ -205,7 +206,7 @@ export default function ReportsView({ token, userRole }) {
               <TrendingUp size={18} />
             </div>
           </div>
-          <div className="metric-value text-gold">${parseFloat(salesSummary?.total_revenue || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</div>
+          <div className="metric-value text-gold">{formatBirr(salesSummary?.total_revenue || 0)}</div>
           <div className="metric-sub">Accumulated checkout sales value</div>
         </div>
 
@@ -228,7 +229,7 @@ export default function ReportsView({ token, userRole }) {
             </div>
           </div>
           <div className="metric-value" style={{ color: 'var(--success-color)' }}>
-            ${parseFloat(stockValuation?.summary?.total_retail_value || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+            {formatBirr(stockValuation?.summary?.total_retail_value || 0)}
           </div>
           <div className="metric-sub">Total stock retail listing worth</div>
         </div>
@@ -241,7 +242,7 @@ export default function ReportsView({ token, userRole }) {
             </div>
           </div>
           <div className="metric-value" style={{ color: 'var(--warning-color)' }}>
-            ${parseFloat(stockValuation?.summary?.total_cost_value || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+            {formatBirr(stockValuation?.summary?.total_cost_value || 0)}
           </div>
           <div className="metric-sub">Capital asset value of {stockValuation?.summary?.total_units || 0} items</div>
         </div>
@@ -272,9 +273,10 @@ export default function ReportsView({ token, userRole }) {
                 <Tooltip 
                   contentStyle={{ background: 'var(--surface-color)', border: '1px solid var(--surface-border)', borderRadius: '8px' }}
                   labelStyle={{ color: 'var(--text-main)', fontWeight: 'bold' }}
+                  formatter={(value) => [formatBirr(value), 'Revenue']}
                 />
                 <Legend wrapperStyle={{ fontSize: 11 }} />
-                <Area type="monotone" dataKey="revenue" name="Daily Revenue ($)" stroke="#10b981" fillOpacity={1} fill="url(#colorRevenue)" strokeWidth={2} />
+                <Area type="monotone" dataKey="revenue" name="Daily Revenue (Br)" stroke="#10b981" fillOpacity={1} fill="url(#colorRevenue)" strokeWidth={2} />
               </AreaChart>
             </ResponsiveContainer>
           )}
@@ -297,10 +299,11 @@ export default function ReportsView({ token, userRole }) {
                 <Tooltip 
                   contentStyle={{ background: 'var(--surface-color)', border: '1px solid var(--surface-border)', borderRadius: '8px' }}
                   labelStyle={{ color: 'var(--text-main)', fontWeight: 'bold' }}
+                  formatter={(value) => formatBirr(value)}
                 />
                 <Legend wrapperStyle={{ fontSize: 11 }} />
-                <Bar dataKey="costValue" name="Asset Cost Value ($)" fill="var(--warning-color)" radius={[4, 4, 0, 0]} />
-                <Bar dataKey="retailValue" name="Asset Retail Worth ($)" fill="var(--primary-color)" radius={[4, 4, 0, 0]} />
+                <Bar dataKey="costValue" name="Asset Cost Value (Br)" fill="var(--warning-color)" radius={[4, 4, 0, 0]} />
+                <Bar dataKey="retailValue" name="Asset Retail Worth (Br)" fill="var(--primary-color)" radius={[4, 4, 0, 0]} />
               </BarChart>
             </ResponsiveContainer>
           </div>
@@ -357,8 +360,8 @@ export default function ReportsView({ token, userRole }) {
                 No customer returns recorded.
               </div>
             ) : (
-              <div style={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center' }}>
-                <div style={{ width: '60%', height: '100%' }}>
+              <div className="pie-chart-layout">
+                <div className="pie-chart-canvas">
                   <ResponsiveContainer width="100%" height="100%">
                     <PieChart>
                       <Pie
@@ -378,7 +381,7 @@ export default function ReportsView({ token, userRole }) {
                     </PieChart>
                   </ResponsiveContainer>
                 </div>
-                <div style={{ width: '40%', display: 'flex', flexDirection: 'column', gap: '8px', fontSize: '12px' }}>
+                <div className="pie-chart-legend">
                   {returnsChartData.map((entry, index) => (
                     <div key={index} style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                       <div style={{ width: '12px', height: '12px', borderRadius: '3px', background: COLORS[index % COLORS.length] }} />

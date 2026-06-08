@@ -252,14 +252,14 @@ export default function UsersManager({ token, currentUserId }) {
 
   return (
     <div className="animate-fade">
-      <div className="page-header">
+      <div className="page-header page-header-actions">
         <div className="page-title-section">
           <h2 className="page-title">Staff Management</h2>
           <p className="page-description">
             Create staff accounts, assign roles, and manage login credentials
           </p>
         </div>
-        <div style={{ display: 'flex', gap: '10px' }}>
+        <div className="header-actions stack-on-mobile">
           <button onClick={fetchUsers} className="btn-secondary" disabled={loading}>
             <RefreshCw size={16} className={loading ? 'spin' : ''} /> Refresh
           </button>
@@ -275,7 +275,7 @@ export default function UsersManager({ token, currentUserId }) {
         </div>
       )}
 
-      <div className="premium-table-card">
+      <div className="premium-table-card user-table-desktop">
         <div className="premium-table-scroll">
           <table className="premium-table">
             <thead>
@@ -362,6 +362,66 @@ export default function UsersManager({ token, currentUserId }) {
             </tbody>
           </table>
         </div>
+      </div>
+
+      <div className="user-card-list">
+        {loading ? (
+          <div className="inventory-card-empty">Loading staff...</div>
+        ) : users.length === 0 ? (
+          <div className="inventory-card-empty">No staff members yet. Create your first user to get started.</div>
+        ) : (
+          users.map((u) => (
+            <div key={u.id} className={`user-card bg-glass ${!u.is_active ? 'user-card-inactive' : ''}`}>
+              <div className="user-card-header">
+                <div>
+                  <div className="user-card-name">{u.full_name}</div>
+                  <div className="user-card-username"><code>{u.username}</code></div>
+                </div>
+                <span className={`status-badge ${u.is_active ? 'status-active' : 'status-inactive'}`}>
+                  {u.is_active ? 'Active' : 'Inactive'}
+                </span>
+              </div>
+              <div className="user-card-role">
+                <span className={`role-badge role-badge-${u.role}`}>
+                  {ROLE_LABELS[u.role] || u.role}
+                </span>
+                <span className="role-badge-desc">{ROLE_DESCRIPTIONS[u.role]}</span>
+              </div>
+              <div className="user-card-login">Last login: {formatDate(u.last_login)}</div>
+              <div className="user-card-actions">
+                {u.is_active && (
+                  <>
+                    <button
+                      className="btn-secondary inventory-card-btn"
+                      onClick={() => {
+                        setShowResetModal(u);
+                        setResetPassword('');
+                        setResetError('');
+                      }}
+                    >
+                      Reset Password
+                    </button>
+                    <button
+                      className="btn-secondary inventory-card-btn inventory-card-btn-danger"
+                      disabled={u.id === currentUserId}
+                      onClick={() => handleDeactivate(u)}
+                    >
+                      Deactivate
+                    </button>
+                  </>
+                )}
+                {!u.is_active && (
+                  <button
+                    className="btn-secondary inventory-card-btn"
+                    onClick={() => handleReactivate(u)}
+                  >
+                    Reactivate
+                  </button>
+                )}
+              </div>
+            </div>
+          ))
+        )}
       </div>
 
       {/* Create User Modal */}

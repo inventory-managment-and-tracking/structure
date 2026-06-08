@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import { Search, Plus, RefreshCw, Printer, AlertTriangle, X, ArrowRightLeft, Pencil, Trash2 } from 'lucide-react';
+import { formatBirr } from '../utils/formatBirr';
 
 export default function ProductList({ token, userRole, addToCart, onStockAdjusted }) {
   const [products, setProducts] = useState([]);
@@ -479,7 +480,7 @@ export default function ProductList({ token, userRole, addToCart, onStockAdjuste
         )}
       </div>
 
-      <div className="inventory-filters-panel bg-glass" style={{ padding: '16px', borderRadius: '14px' }}>
+      <div className="inventory-filters-panel responsive-filter-bar bg-glass">
         <div className="filter-input-wrap" style={{ position: 'relative' }}>
           <Search size={16} style={{ position: 'absolute', left: '12px', top: '14px', color: 'var(--text-dim)' }} />
           <input
@@ -498,7 +499,7 @@ export default function ProductList({ token, userRole, addToCart, onStockAdjuste
           </select>
         </div>
 
-        <div className="filter-dropdown-wrap" style={{ width: '100px' }}>
+        <div className="filter-dropdown-wrap filter-dropdown-size">
           <select value={sizeFilter} onChange={(e) => setSizeFilter(e.target.value)}>
             <option value="">Size</option>
             <option value="S">S</option>
@@ -519,7 +520,7 @@ export default function ProductList({ token, userRole, addToCart, onStockAdjuste
         </button>
       </div>
 
-      <div className="premium-table-card">
+      <div className="premium-table-card inventory-table-desktop">
         <div className="premium-table-scroll">
           <table className="premium-table">
             <thead>
@@ -563,8 +564,8 @@ export default function ProductList({ token, userRole, addToCart, onStockAdjuste
                       <td style={{ fontSize: '13px' }}>
                         {p.size || '—'} / {p.color || '—'}
                       </td>
-                      <td className="mono" style={{ fontWeight: '700' }}>${parseFloat(p.unit_price).toFixed(2)}</td>
-                      {!isRestricted && <td className="mono" style={{ color: 'var(--text-muted)' }}>${p.cost_price ? parseFloat(p.cost_price).toFixed(2) : '—'}</td>}
+                      <td className="mono" style={{ fontWeight: '700' }}>{formatBirr(p.unit_price)}</td>
+                      {!isRestricted && <td className="mono" style={{ color: 'var(--text-muted)' }}>{p.cost_price ? formatBirr(p.cost_price) : '—'}</td>}
                       <td>
                         <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                           <span className="mono" style={{ fontWeight: '700', fontSize: '15px' }}>{p.quantity}</span>
@@ -642,6 +643,72 @@ export default function ProductList({ token, userRole, addToCart, onStockAdjuste
         </div>
       </div>
 
+      <div className="inventory-card-list">
+        {loading ? (
+          <div className="inventory-card-empty">Loading inventory catalog...</div>
+        ) : products.length === 0 ? (
+          <div className="inventory-card-empty">No products matching your search criteria</div>
+        ) : (
+          products.map((p) => {
+            const isLow = p.quantity <= p.low_stock_threshold;
+            return (
+              <div key={p.id} className="inventory-card bg-glass">
+                <div className="inventory-card-header">
+                  <div>
+                    <div className="inventory-card-name">{p.name}</div>
+                    <div className="inventory-card-sku mono">{p.sku}</div>
+                  </div>
+                  <span className="badge-ui gray">{p.category_name || 'General'}</span>
+                </div>
+                <div className="inventory-card-meta">
+                  <span>{p.size || '—'} / {p.color || '—'}</span>
+                  <span className="mono" style={{ fontWeight: 700 }}>{formatBirr(p.unit_price)}</span>
+                </div>
+                <div className="inventory-card-stock">
+                  <span className="mono" style={{ fontWeight: 700, fontSize: '15px' }}>{p.quantity} in stock</span>
+                  {isLow ? (
+                    <span className="badge-ui red"><AlertTriangle size={10} /> Low</span>
+                  ) : (
+                    <span className="badge-ui green">OK</span>
+                  )}
+                </div>
+                <div className="inventory-card-actions">
+                  <button
+                    onClick={() => handleAddToCart(p)}
+                    className="btn-secondary inventory-card-btn"
+                    disabled={p.quantity <= 0}
+                  >
+                    Add to Cart
+                  </button>
+                  <button onClick={() => triggerQrGenerate(p)} className="btn-secondary inventory-card-icon-btn" title="Generate QR">
+                    <Printer size={14} />
+                  </button>
+                  {!isRestricted && (
+                    <button
+                      onClick={() => { setActiveProduct(p); setShowAdjustModal(true); }}
+                      className="btn-secondary inventory-card-icon-btn"
+                      title="Adjust Stock"
+                    >
+                      <ArrowRightLeft size={14} />
+                    </button>
+                  )}
+                  {isOwner && (
+                    <>
+                      <button onClick={() => openEditModal(p)} className="btn-secondary inventory-card-icon-btn" title="Edit">
+                        <Pencil size={14} />
+                      </button>
+                      <button onClick={() => openDeleteModal(p)} className="btn-secondary inventory-card-icon-btn inventory-card-btn-danger" title="Delete">
+                        <Trash2 size={14} />
+                      </button>
+                    </>
+                  )}
+                </div>
+              </div>
+            );
+          })
+        )}
+      </div>
+
       {/* 1. Modal: Add Product */}
       {showAddModal && createPortal(
         <div className="modal-overlay">
@@ -666,13 +733,13 @@ export default function ProductList({ token, userRole, addToCart, onStockAdjuste
               {/* Retail + Cost Price */}
               <div className="form-grid-2">
                 <div className="form-group">
-                  <label className="form-label">Retail Price ($) *</label>
+                  <label className="form-label">Retail Price (Br) *</label>
                   <input type="number" step="0.01" placeholder="29.99"
                     value={newProduct.unit_price}
                     onChange={(e) => setNewProduct({ ...newProduct, unit_price: e.target.value })} />
                 </div>
                 <div className="form-group">
-                  <label className="form-label">Cost Price ($)</label>
+                  <label className="form-label">Cost Price (Br)</label>
                   <input type="number" step="0.01" placeholder="12.50"
                     value={newProduct.cost_price}
                     onChange={(e) => setNewProduct({ ...newProduct, cost_price: e.target.value })} />
@@ -849,13 +916,13 @@ export default function ProductList({ token, userRole, addToCart, onStockAdjuste
 
               <div className="form-grid-2">
                 <div className="form-group">
-                  <label className="form-label">Retail Price ($) *</label>
+                  <label className="form-label">Retail Price (Br) *</label>
                   <input type="number" step="0.01"
                     value={editProduct.unit_price}
                     onChange={(e) => setEditProduct({ ...editProduct, unit_price: e.target.value })} />
                 </div>
                 <div className="form-group">
-                  <label className="form-label">Cost Price ($)</label>
+                  <label className="form-label">Cost Price (Br)</label>
                   <input type="number" step="0.01"
                     value={editProduct.cost_price}
                     onChange={(e) => setEditProduct({ ...editProduct, cost_price: e.target.value })} />
@@ -967,7 +1034,7 @@ export default function ProductList({ token, userRole, addToCart, onStockAdjuste
       {/* 1c. Modal: Delete Product (owner only) */}
       {showDeleteModal && activeProduct && createPortal(
         <div className="modal-overlay">
-          <div className="modal-content bg-glass">
+          <div className="modal-content bg-glass delete-product-modal">
             <div className="modal-header">
               <h3 style={{ fontSize: '18px' }}>Remove Product</h3>
               <button onClick={() => { setShowDeleteModal(false); setDeleteError(''); }} className="modal-close-btn"><X size={18} /></button>
