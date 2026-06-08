@@ -50,7 +50,13 @@ async function adjustStock(req, res, next) {
 
 async function remove(req, res, next) {
   try {
-    res.json({ success: true, data: await svc.softDeleteProduct(req.params.id) });
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) return res.status(400).json({ success: false, errors: errors.array() });
+    const { strategy, replacement_name } = req.body || {};
+    res.json({
+      success: true,
+      data: await svc.deleteProduct(req.params.id, { strategy, replacement_name }, req.user.id),
+    });
   } catch (err) { next(err); }
 }
 

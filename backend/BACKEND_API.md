@@ -318,9 +318,9 @@ Legend:
 | GET | `/api/products/sku/:sku` | any | **QR scan** — lookup by SKU |
 | GET | `/api/products/:id` | any | One product (full detail) |
 | POST | `/api/products` | owner, cashier | Create product |
-| PATCH | `/api/products/:id` | owner, cashier | Update product info |
+| PATCH | `/api/products/:id` | owner | Update product info (name, size, color, prices, etc.) |
 | PATCH | `/api/products/:id/adjust-stock` | owner, cashier | Manual stock in/out |
-| DELETE | `/api/products/:id` | owner | Soft delete (is_active = false) |
+| DELETE | `/api/products/:id` | owner | Remove product (smart delete — see below) |
 
 **GET `/api/products` — query params:**
 
@@ -352,6 +352,25 @@ Legend:
 - `sku` is auto-generated if omitted (`CLT-YYYYMMDD-0001`).
 - Initial `quantity` creates a `stock_in` movement automatically.
 
+**PATCH `/api/products/:id` — body (all fields optional):**
+
+```json
+{
+  "name": "Men Blue Denim Jacket",
+  "unit_price": 850,
+  "cost_price": 500,
+  "category_id": 4,
+  "supplier_id": 1,
+  "size": "L",
+  "color": "Blue",
+  "low_stock_threshold": 5,
+  "description": "Optional"
+}
+```
+
+- Does **not** change `quantity` or `sku` — use adjust-stock for quantity changes.
+- **Owner only** (cashiers cannot edit product metadata).
+
 **PATCH `/api/products/:id/adjust-stock` — body:**
 
 ```json
@@ -364,6 +383,51 @@ Legend:
 - Positive number = add stock.
 - Negative number = remove stock.
 - Cannot go below 0.
+
+**DELETE `/api/products/:id` — smart removal (owner only):**
+
+**Zero stock** — no body required:
+
+- If the product has no sales, returns, or stock movements → **hard delete** (permanently removed).
+- Otherwise → **soft delete** (`is_active = false`, hidden from catalog; history preserved).
+
+**In stock (`quantity > 0`)** — body required:
+
+```json
+{
+  "strategy": "write_off"
+}
+```
+
+or
+
+```json
+{
+  "strategy": "transfer",
+  "replacement_name": "Revised Product Name"
+}
+```
+
+| Strategy | Behavior |
+|----------|----------|
+| `write_off` | Records a `damaged` stock movement, zeros quantity, resolves low-stock alerts, soft-deletes product |
+| `transfer` | Creates a new product (copies category, size, color, prices, etc.; new auto SKU), moves all stock via movements, soft-deletes the old product |
+
+**Response example:**
+
+```json
+{
+  "success": true,
+  "data": {
+    "message": "Product removed from catalog",
+    "removal_type": "soft",
+    "product": { "id": 1, "name": "...", "sku": "..." },
+    "new_product": { "id": 2, "name": "...", "sku": "..." }
+  }
+}
+```
+
+`new_product` is present only when `strategy` is `transfer`. `removal_type` is `hard` or `soft`.
 
 ---
 

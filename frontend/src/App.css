@@ -1297,3 +1297,43 @@
   to { transform: rotate(360deg); }
 }
 
+.delete-choice-cards {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.delete-choice-card {
+  display: flex;
+  gap: 12px;
+  align-items: flex-start;
+  padding: 14px;
+  border-radius: 10px;
+  border: 1px solid var(--border-color);
+  background: var(--surface-light);
+  cursor: pointer;
+  transition: border-color 0.15s ease, background 0.15s ease;
+}
+
+.delete-choice-card input[type="radio"] {
+  margin-top: 3px;
+  flex-shrink: 0;
+}
+
+.delete-choice-card.selected {
+  border-color: var(--primary-color);
+  background: var(--primary-glow);
+}
+
+.delete-choice-title {
+  font-weight: 600;
+  font-size: 14px;
+  margin-bottom: 4px;
+}
+
+.delete-choice-desc {
+  font-size: 12px;
+  color: var(--text-muted);
+  line-height: 1.45;
+}
+

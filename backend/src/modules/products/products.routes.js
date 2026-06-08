@@ -21,6 +21,7 @@ router.post(
     body('unit_price').isFloat({ gt: 0 }).withMessage('Unit price must be > 0'),
     body('category_id').optional().isInt(),
     body('supplier_id').optional().isInt(),
+    body('supplier_name').optional().trim(),
     body('quantity').optional().isInt({ min: 0 }),
     body('low_stock_threshold').optional().isInt({ min: 0 }),
     body('cost_price').optional().isFloat({ min: 0 }),
@@ -30,12 +31,14 @@ router.post(
 
 router.patch(
   '/:id',
-  authorize('owner', 'cashier'),
+  authorize('owner'),
   [
     body('name').optional().trim().notEmpty(),
     body('unit_price').optional().isFloat({ gt: 0 }),
     body('cost_price').optional().isFloat({ min: 0 }),
     body('low_stock_threshold').optional().isInt({ min: 0 }),
+    body('supplier_id').optional().isInt(),
+    body('supplier_name').optional().trim(),
   ],
   ctrl.update
 );
@@ -52,6 +55,14 @@ router.patch(
   ctrl.adjustStock
 );
 
-router.delete('/:id', authorize('owner'), ctrl.remove);
+router.delete(
+  '/:id',
+  authorize('owner'),
+  [
+    body('strategy').optional().isIn(['write_off', 'transfer']).withMessage('strategy must be write_off or transfer'),
+    body('replacement_name').optional().trim().notEmpty().withMessage('replacement_name cannot be empty'),
+  ],
+  ctrl.remove
+);
 
 module.exports = router;

@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { createPortal } from 'react-dom';
-import { Search, Plus, SlidersHorizontal, RefreshCw, Printer, AlertTriangle, X, Check, ArrowRightLeft } from 'lucide-react';
+import { Search, Plus, RefreshCw, Printer, AlertTriangle, X, ArrowRightLeft, Pencil, Trash2 } from 'lucide-react';
 
 export default function ProductList({ token, userRole, addToCart, onStockAdjusted }) {
   const [products, setProducts] = useState([]);
@@ -18,6 +18,8 @@ export default function ProductList({ token, userRole, addToCart, onStockAdjuste
 
   // Modal states
   const [showAddModal, setShowAddModal] = useState(false);
+  const [showEditModal, setShowEditModal] = useState(false);
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [showAdjustModal, setShowAdjustModal] = useState(false);
   const [showQrModal, setShowQrModal] = useState(false);
 
@@ -89,6 +91,20 @@ export default function ProductList({ token, userRole, addToCart, onStockAdjuste
     const updated = [name.trim(), ...hist.filter(h => h !== name.trim())].slice(0, 10);
     localStorage.setItem('supplier_history', JSON.stringify(updated));
   };
+  const getProductSupplierHint = (productId) => {
+    try {
+      const map = JSON.parse(localStorage.getItem('product_supplier_hints') || '{}');
+      return map[productId] || '';
+    } catch { return ''; }
+  };
+  const saveProductSupplierHint = (productId, name) => {
+    if (!productId || !name?.trim()) return;
+    try {
+      const map = JSON.parse(localStorage.getItem('product_supplier_hints') || '{}');
+      map[productId] = name.trim();
+      localStorage.setItem('product_supplier_hints', JSON.stringify(map));
+    } catch { /* ignore */ }
+  };
 
   // Fetch all products, categories, suppliers
   const fetchData = async () => {
@@ -135,14 +151,25 @@ export default function ProductList({ token, userRole, addToCart, onStockAdjuste
 
   const [addError, setAddError] = useState('');
   const [isAdding, setIsAdding] = useState(false);
+  const [editProduct, setEditProduct] = useState(null);
+  const [editError, setEditError] = useState('');
+  const [isEditing, setIsEditing] = useState(false);
+  const [deleteError, setDeleteError] = useState('');
+  const [isDeleting, setIsDeleting] = useState(false);
+  const [deleteStrategy, setDeleteStrategy] = useState('write_off');
+  const [replacementName, setReplacementName] = useState('');
 
-  const handleAddToCart = (product) => {
-    addToCart(product);
-    setToast({ show: true, message: `"${product.name}" added to checkout` });
+  const showToast = (message) => {
+    setToast({ show: true, message });
     if (window.toastTimeout) clearTimeout(window.toastTimeout);
     window.toastTimeout = setTimeout(() => {
       setToast({ show: false, message: '' });
     }, 2500);
+  };
+
+  const handleAddToCart = (product) => {
+    addToCart(product);
+    showToast(`"${product.name}" added to checkout`);
   };
 
   const handleAddProduct = async () => {
@@ -170,11 +197,12 @@ export default function ProductList({ token, userRole, addToCart, onStockAdjuste
       body.unit_price = parseFloat(newProduct.unit_price);
       if (newProduct.cost_price) body.cost_price = parseFloat(newProduct.cost_price);
       if (newProduct.category_id) body.category_id = parseInt(newProduct.category_id, 10);
-      // Match typed supplier name to a known DB supplier (optional)
       if (newProduct.supplier_name?.trim()) {
-        const matched = suppliers.find(s => s.name.toLowerCase() === newProduct.supplier_name.trim().toLowerCase());
+        const name = newProduct.supplier_name.trim();
+        const matched = suppliers.find(s => s.name.toLowerCase() === name.toLowerCase());
         if (matched) body.supplier_id = matched.id;
-        saveSupplierToHistory(newProduct.supplier_name.trim());
+        else body.supplier_name = name;
+        saveSupplierToHistory(name);
       }
       if (newProduct.size) body.size = newProduct.size.trim();
       if (newProduct.color) body.color = newProduct.color.trim();
@@ -196,6 +224,10 @@ export default function ProductList({ token, userRole, addToCart, onStockAdjuste
           throw new Error(data.errors.map(e => e.msg).join(', '));
         }
         throw new Error(data.message || 'Failed to create product');
+      }
+
+      if (newProduct.supplier_name?.trim() && data.data?.id) {
+        saveProductSupplierHint(data.data.id, newProduct.supplier_name.trim());
       }
 
       setShowAddModal(false);
@@ -243,6 +275,171 @@ export default function ProductList({ token, userRole, addToCart, onStockAdjuste
     }
   };
 
+  const openEditModal = (product) => {
+    setEditProduct({
+      id: product.id,
+      name: product.name,
+      unit_price: String(product.unit_price),
+      cost_price: product.cost_price != null ? String(product.cost_price) : '',
+      category_id: product.category_id ? String(product.category_id) : '',
+      supplier_name: product.supplier_name
+        || getProductSupplierHint(product.id)
+        || (!product.supplier_id ? getSupplierHistory()[0] : '')
+        || '',
+      size: product.size || '',
+      color: product.color || '',
+      low_stock_threshold: product.low_stock_threshold != null ? String(product.low_stock_threshold) : '5',
+      description: product.description || '',
+      sku: product.sku,
+      quantity: product.quantity,
+    });
+    setEditError('');
+    setShowEditModal(true);
+  };
+
+  const buildProductBody = (form, { includeQuantity = false } = {}) => {
+    const body = { name: form.name.trim() };
+    body.unit_price = parseFloat(form.unit_price);
+    if (form.cost_price) body.cost_price = parseFloat(form.cost_price);
+    if (form.category_id) body.category_id = parseInt(form.category_id, 10);
+    if (form.supplier_name?.trim()) {
+      const name = form.supplier_name.trim();
+      const matched = suppliers.find(s => s.name.toLowerCase() === name.toLowerCase());
+      if (matched) body.supplier_id = matched.id;
+      else body.supplier_name = name;
+      saveSupplierToHistory(name);
+    }
+    if (form.size) body.size = form.size.trim();
+    if (form.color) body.color = form.color.trim();
+    if (includeQuantity) {
+      body.quantity = form.quantity ? parseInt(form.quantity, 10) : 0;
+    }
+    body.low_stock_threshold = form.low_stock_threshold ? parseInt(form.low_stock_threshold, 10) : 5;
+    if (form.sku) body.sku = form.sku.trim();
+    if (form.description) body.description = form.description.trim();
+    return body;
+  };
+
+  const handleEditProduct = async () => {
+    if (!editProduct) return;
+    setEditError('');
+
+    if (!editProduct.name.trim()) {
+      setEditError('Product name is required');
+      return;
+    }
+    if (!editProduct.unit_price || parseFloat(editProduct.unit_price) <= 0) {
+      setEditError('Retail price must be greater than 0');
+      return;
+    }
+
+    setIsEditing(true);
+    try {
+      const body = buildProductBody(editProduct);
+      const res = await fetch(`/api/products/${editProduct.id}`, {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`,
+        },
+        body: JSON.stringify(body),
+      });
+
+      if (res.status === 401) {
+        window.dispatchEvent(new Event('unauthorized'));
+        return;
+      }
+
+      const data = await res.json();
+      if (!data.success) {
+        if (data.errors && Array.isArray(data.errors)) {
+          throw new Error(data.errors.map(e => e.msg).join(', '));
+        }
+        throw new Error(data.message || 'Failed to update product');
+      }
+
+      if (editProduct.supplier_name?.trim()) {
+        saveProductSupplierHint(editProduct.id, editProduct.supplier_name.trim());
+      }
+
+      setShowEditModal(false);
+      setEditProduct(null);
+      fetchData();
+      showToast(`"${data.data.name}" updated`);
+    } catch (err) {
+      console.error('[EDIT PRODUCT ERR]', err);
+      setEditError(err.message);
+    } finally {
+      setIsEditing(false);
+    }
+  };
+
+  const openDeleteModal = (product) => {
+    setActiveProduct(product);
+    setDeleteStrategy('write_off');
+    setReplacementName('');
+    setDeleteError('');
+    setShowDeleteModal(true);
+  };
+
+  const handleDeleteProduct = async () => {
+    if (!activeProduct) return;
+    setDeleteError('');
+
+    if (activeProduct.quantity > 0 && deleteStrategy === 'transfer' && !replacementName.trim()) {
+      setDeleteError('Enter a name for the new product to receive the stock');
+      return;
+    }
+
+    setIsDeleting(true);
+    try {
+      const body = activeProduct.quantity > 0
+        ? {
+            strategy: deleteStrategy,
+            ...(deleteStrategy === 'transfer' ? { replacement_name: replacementName.trim() } : {}),
+          }
+        : undefined;
+
+      const res = await fetch(`/api/products/${activeProduct.id}`, {
+        method: 'DELETE',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`,
+        },
+        body: body ? JSON.stringify(body) : undefined,
+      });
+
+      if (res.status === 401) {
+        window.dispatchEvent(new Event('unauthorized'));
+        return;
+      }
+
+      const data = await res.json();
+      if (!data.success) {
+        if (data.errors && Array.isArray(data.errors)) {
+          throw new Error(data.errors.map(e => e.msg).join(', '));
+        }
+        throw new Error(data.message || 'Failed to remove product');
+      }
+
+      setShowDeleteModal(false);
+      setActiveProduct(null);
+      fetchData();
+      if (onStockAdjusted) onStockAdjusted();
+
+      if (data.data.new_product) {
+        showToast(`"${data.data.product.name}" removed — stock moved to "${data.data.new_product.name}"`);
+      } else {
+        showToast(data.data.message || `"${data.data.product.name}" removed from catalog`);
+      }
+    } catch (err) {
+      console.error('[DELETE PRODUCT ERR]', err);
+      setDeleteError(err.message);
+    } finally {
+      setIsDeleting(false);
+    }
+  };
+
   const triggerQrGenerate = async (product) => {
     try {
       setActiveProduct(product);
@@ -266,6 +463,7 @@ export default function ProductList({ token, userRole, addToCart, onStockAdjuste
   };
 
   const isRestricted = userRole === 'sales';
+  const isOwner = userRole === 'owner';
 
   return (
     <div className="animate-fade">
@@ -411,6 +609,27 @@ export default function ProductList({ token, userRole, addToCart, onStockAdjuste
                             >
                               <ArrowRightLeft size={14} />
                             </button>
+                          )}
+
+                          {isOwner && (
+                            <>
+                              <button
+                                onClick={() => openEditModal(p)}
+                                className="btn-secondary"
+                                style={{ padding: '6px' }}
+                                title="Edit Product"
+                              >
+                                <Pencil size={14} />
+                              </button>
+                              <button
+                                onClick={() => openDeleteModal(p)}
+                                className="btn-secondary"
+                                style={{ padding: '6px', color: 'var(--danger-color)', borderColor: 'var(--danger-color)' }}
+                                title="Remove Product"
+                              >
+                                <Trash2 size={14} />
+                              </button>
+                            </>
                           )}
                         </div>
                       </td>
@@ -592,6 +811,257 @@ export default function ProductList({ token, userRole, addToCart, onStockAdjuste
                 {isAdding ? 'Registering...' : 'Register Product'}
               </button>
             </div>
+          </div>
+        </div>
+      , document.body)}
+
+      {/* 1b. Modal: Edit Product (owner only) */}
+      {showEditModal && editProduct && createPortal(
+        <div className="modal-overlay">
+          <div className="modal-content bg-glass">
+            <div className="modal-header">
+              <h3 style={{ fontSize: '18px' }}>Edit Product</h3>
+              <button onClick={() => { setShowEditModal(false); setEditProduct(null); setEditError(''); }} className="modal-close-btn"><X size={18} /></button>
+            </div>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+              <div className="form-grid-2">
+                <div className="form-group">
+                  <label className="form-label">SKU</label>
+                  <input type="text" value={editProduct.sku} disabled style={{ opacity: 0.6, cursor: 'not-allowed' }} />
+                </div>
+                <div className="form-group">
+                  <label className="form-label">Current Stock</label>
+                  <input type="text" value={editProduct.quantity} disabled style={{ opacity: 0.6, cursor: 'not-allowed' }} />
+                  <span style={{ fontSize: '11px', color: 'var(--text-dim)', marginTop: '4px', display: 'block' }}>
+                    Use the stock adjust button to change quantity
+                  </span>
+                </div>
+              </div>
+
+              <div className="form-group">
+                <label className="form-label">Product Name *</label>
+                <input
+                  type="text"
+                  value={editProduct.name}
+                  onChange={(e) => setEditProduct({ ...editProduct, name: e.target.value })}
+                />
+              </div>
+
+              <div className="form-grid-2">
+                <div className="form-group">
+                  <label className="form-label">Retail Price ($) *</label>
+                  <input type="number" step="0.01"
+                    value={editProduct.unit_price}
+                    onChange={(e) => setEditProduct({ ...editProduct, unit_price: e.target.value })} />
+                </div>
+                <div className="form-group">
+                  <label className="form-label">Cost Price ($)</label>
+                  <input type="number" step="0.01"
+                    value={editProduct.cost_price}
+                    onChange={(e) => setEditProduct({ ...editProduct, cost_price: e.target.value })} />
+                </div>
+              </div>
+
+              <div className="form-group">
+                <label className="form-label">Category</label>
+                <select
+                  value={editProduct.category_id}
+                  onChange={(e) => {
+                    const newCatId = e.target.value;
+                    const sizeType = getSizeType(newCatId);
+                    setEditProduct({
+                      ...editProduct,
+                      category_id: newCatId,
+                      size: sizeType === 'none' ? 'One Size' : editProduct.size,
+                    });
+                  }}
+                >
+                  <option value="">Select Men's Category</option>
+                  {[...new Map(categories.map(c => [c.id, c])).values()].map(c => (
+                    <option key={c.id} value={c.id}>{c.name}</option>
+                  ))}
+                </select>
+              </div>
+
+              <div className="form-group">
+                <label className="form-label">Supplier <span style={{ fontSize: '11px', fontWeight: 400, color: 'var(--text-dim)' }}>(optional)</span></label>
+                <input
+                  type="text"
+                  list="supplier-hints-edit"
+                  value={editProduct.supplier_name}
+                  onChange={(e) => setEditProduct({ ...editProduct, supplier_name: e.target.value })}
+                  autoComplete="off"
+                />
+                <datalist id="supplier-hints-edit">
+                  {suppliers.map(s => <option key={s.id} value={s.name} />)}
+                </datalist>
+              </div>
+
+              <div className="form-grid-2">
+                <div className="form-group">
+                  {getSizeType(editProduct.category_id) === 'clothing' && (
+                    <>
+                      <label className="form-label">Size</label>
+                      <select value={editProduct.size}
+                        onChange={(e) => setEditProduct({ ...editProduct, size: e.target.value })}>
+                        <option value="">Select Clothing Size</option>
+                        {CLOTHING_SIZES.map(s => <option key={s} value={s}>{s}</option>)}
+                      </select>
+                    </>
+                  )}
+                  {getSizeType(editProduct.category_id) === 'shoes' && (
+                    <>
+                      <label className="form-label">Shoe Size (EU)</label>
+                      <select value={editProduct.size}
+                        onChange={(e) => setEditProduct({ ...editProduct, size: e.target.value })}>
+                        <option value="">Select EU Size</option>
+                        {SHOE_SIZES_EU.map(s => (
+                          <option key={s.eu} value={`EU ${s.eu}`}>EU {s.eu} — ≈{s.cm} cm</option>
+                        ))}
+                      </select>
+                    </>
+                  )}
+                  {getSizeType(editProduct.category_id) === 'none' && (
+                    <>
+                      <label className="form-label">Size</label>
+                      <input type="text" value="One Size Fits All" disabled style={{ opacity: 0.5, cursor: 'not-allowed' }} />
+                    </>
+                  )}
+                </div>
+                <div className="form-group">
+                  <label className="form-label">Color</label>
+                  <input
+                    type="text"
+                    list="men-colors-edit"
+                    value={editProduct.color}
+                    onChange={(e) => setEditProduct({ ...editProduct, color: e.target.value })}
+                    autoComplete="off"
+                  />
+                  <datalist id="men-colors-edit">
+                    {MEN_COLORS.map(c => <option key={c} value={c} />)}
+                  </datalist>
+                </div>
+              </div>
+
+              <div className="form-group">
+                <label className="form-label">Low Stock Warning Threshold</label>
+                <input type="number"
+                  value={editProduct.low_stock_threshold}
+                  onChange={(e) => setEditProduct({ ...editProduct, low_stock_threshold: e.target.value })} />
+              </div>
+
+              {editError && (
+                <div style={{ background: 'var(--danger-glow)', color: 'var(--danger-color)', border: '1px solid var(--danger-color)', padding: '10px', borderRadius: '6px', fontSize: '12px', textAlign: 'center' }}>
+                  {editError}
+                </div>
+              )}
+
+              <button type="button" className="submit-btn" disabled={isEditing} onClick={handleEditProduct}>
+                {isEditing ? 'Saving...' : 'Save Changes'}
+              </button>
+            </div>
+          </div>
+        </div>
+      , document.body)}
+
+      {/* 1c. Modal: Delete Product (owner only) */}
+      {showDeleteModal && activeProduct && createPortal(
+        <div className="modal-overlay">
+          <div className="modal-content bg-glass">
+            <div className="modal-header">
+              <h3 style={{ fontSize: '18px' }}>Remove Product</h3>
+              <button onClick={() => { setShowDeleteModal(false); setDeleteError(''); }} className="modal-close-btn"><X size={18} /></button>
+            </div>
+
+            {activeProduct.quantity === 0 ? (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+                <p style={{ fontSize: '14px', color: 'var(--text-muted)', lineHeight: 1.5 }}>
+                  Remove <strong>{activeProduct.name}</strong> ({activeProduct.sku}) from the catalog?
+                  This product has no stock on hand.
+                </p>
+                {deleteError && (
+                  <div style={{ background: 'var(--danger-glow)', color: 'var(--danger-color)', border: '1px solid var(--danger-color)', padding: '10px', borderRadius: '6px', fontSize: '12px', textAlign: 'center' }}>
+                    {deleteError}
+                  </div>
+                )}
+                <div style={{ display: 'flex', gap: '10px' }}>
+                  <button type="button" className="btn-secondary" style={{ flex: 1 }} onClick={() => setShowDeleteModal(false)}>
+                    Cancel
+                  </button>
+                  <button type="button" className="submit-btn" style={{ flex: 1, background: 'var(--danger-color)' }} disabled={isDeleting} onClick={handleDeleteProduct}>
+                    {isDeleting ? 'Removing...' : 'Remove from Catalog'}
+                  </button>
+                </div>
+              </div>
+            ) : (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+                <p style={{ fontSize: '14px', color: 'var(--text-muted)', lineHeight: 1.5 }}>
+                  <strong>{activeProduct.name}</strong> has <strong>{activeProduct.quantity}</strong> units in stock.
+                  Choose how to handle the remaining inventory before removing this listing.
+                </p>
+
+                <div className="delete-choice-cards">
+                  <label className={`delete-choice-card ${deleteStrategy === 'write_off' ? 'selected' : ''}`}>
+                    <input
+                      type="radio"
+                      name="deleteStrategy"
+                      value="write_off"
+                      checked={deleteStrategy === 'write_off'}
+                      onChange={() => setDeleteStrategy('write_off')}
+                    />
+                    <div>
+                      <div className="delete-choice-title">Write off as waste</div>
+                      <div className="delete-choice-desc">
+                        Remove all {activeProduct.quantity} units as a store loss. Inventory is reduced and the product is removed from the catalog.
+                      </div>
+                    </div>
+                  </label>
+
+                  <label className={`delete-choice-card ${deleteStrategy === 'transfer' ? 'selected' : ''}`}>
+                    <input
+                      type="radio"
+                      name="deleteStrategy"
+                      value="transfer"
+                      checked={deleteStrategy === 'transfer'}
+                      onChange={() => setDeleteStrategy('transfer')}
+                    />
+                    <div>
+                      <div className="delete-choice-title">Transfer to new product</div>
+                      <div className="delete-choice-desc">
+                        Create a new product listing and move all stock there. The current listing is then removed.
+                      </div>
+                    </div>
+                  </label>
+                </div>
+
+                {deleteStrategy === 'transfer' && (
+                  <div className="form-group">
+                    <label className="form-label">New product name *</label>
+                    <input
+                      type="text"
+                      placeholder="e.g. Slim Fit Oxford Shirt — Revised"
+                      value={replacementName}
+                      onChange={(e) => setReplacementName(e.target.value)}
+                    />
+                  </div>
+                )}
+
+                {deleteError && (
+                  <div style={{ background: 'var(--danger-glow)', color: 'var(--danger-color)', border: '1px solid var(--danger-color)', padding: '10px', borderRadius: '6px', fontSize: '12px', textAlign: 'center' }}>
+                    {deleteError}
+                  </div>
+                )}
+
+                <div style={{ display: 'flex', gap: '10px' }}>
+                  <button type="button" className="btn-secondary" style={{ flex: 1 }} onClick={() => setShowDeleteModal(false)}>
+                    Cancel
+                  </button>
+                  <button type="button" className="submit-btn" style={{ flex: 1, background: 'var(--danger-color)' }} disabled={isDeleting} onClick={handleDeleteProduct}>
+                    {isDeleting ? 'Processing...' : 'Confirm Removal'}
+                  </button>
+                </div>
+              </div>
+            )}
           </div>
         </div>
       , document.body)}
