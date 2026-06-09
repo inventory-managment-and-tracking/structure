@@ -24,10 +24,25 @@ const errorHandler      = require('./middleware/errorHandler');
 
 const app = express();
 
+// Vercel Services strips the /api routePrefix before the request reaches Express.
+const API_BASE = process.env.VERCEL ? '' : '/api';
+const apiPath = (segment) => `${API_BASE}${segment}`;
+
 // ── Security & logging ────────────────────────────────────────
 app.use(helmet());
 app.use(cors());
 app.use(morgan(process.env.NODE_ENV === 'production' ? 'combined' : 'dev'));
+
+// ── Body parsing ──────────────────────────────────────────────
+app.use(express.json());
+app.use(express.urlencoded({ extended: true }));
+
+// ── Health check (before rate limiter when API_BASE is empty) ─
+const healthHandler = (_req, res) => {
+  res.json({ success: true, message: 'ClothTrack API is running', timestamp: new Date() });
+};
+app.get('/health', healthHandler);
+app.get(apiPath('/health'), healthHandler);
 
 // ── Rate limiting ─────────────────────────────────────────────
 const limiter = rateLimit({
@@ -37,36 +52,30 @@ const limiter = rateLimit({
   legacyHeaders: false,
   message: { success: false, message: 'Too many requests, please try again later.' },
 });
-app.use('/api/', limiter);
-
-// ── Body parsing ──────────────────────────────────────────────
-app.use(express.json());
-app.use(express.urlencoded({ extended: true }));
-
-// ── Health check ──────────────────────────────────────────────
-app.get('/health', (_req, res) => {
-  res.json({ success: true, message: 'ClothTrack API is running', timestamp: new Date() });
-});
-
-app.get('/api/health', (_req, res) => {
-  res.json({ success: true, message: 'ClothTrack API is running', timestamp: new Date() });
-});
+if (API_BASE) {
+  app.use(`${API_BASE}/`, limiter);
+} else {
+  app.use((req, res, next) => {
+    if (req.path === '/health') return next();
+    return limiter(req, res, next);
+  });
+}
 
 // ── Public routes (no JWT required) ───────────────────────────
-app.use('/api/auth', authRoutes);
+app.use(apiPath('/auth'), authRoutes);
 
 // ── Protected routes (JWT required for all below) ─────────────
-app.use('/api', authenticate);
-app.use('/api/users',      usersRoutes);
-app.use('/api/categories', categoriesRoutes);
-app.use('/api/suppliers',  suppliersRoutes);
-app.use('/api/products',   productsRoutes);
-app.use('/api/stock',      stockRoutes);
-app.use('/api/sales',      salesRoutes);
-app.use('/api/returns',    returnsRoutes);
-app.use('/api/alerts',     alertsRoutes);
-app.use('/api/qr',         qrRoutes);
-app.use('/api/reports',    reportsRoutes);
+app.use(API_BASE || '/', authenticate);
+app.use(apiPath('/users'),      usersRoutes);
+app.use(apiPath('/categories'), categoriesRoutes);
+app.use(apiPath('/suppliers'),  suppliersRoutes);
+app.use(apiPath('/products'),   productsRoutes);
+app.use(apiPath('/stock'),      stockRoutes);
+app.use(apiPath('/sales'),      salesRoutes);
+app.use(apiPath('/returns'),    returnsRoutes);
+app.use(apiPath('/alerts'),     alertsRoutes);
+app.use(apiPath('/qr'),         qrRoutes);
+app.use(apiPath('/reports'),    reportsRoutes);
 
 // ── 404 ───────────────────────────────────────────────────────
 app.use((_req, res) => {
