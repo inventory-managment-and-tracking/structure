@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { ShoppingBag, Trash2, CheckCircle, RotateCcw } from 'lucide-react';
 import { formatBirr } from '../utils/formatBirr';
+import { notifyInventoryChanged } from '../utils/inventoryEvents';
 
 export default function POSCart({ cart, updateQty, removeFromCart, onCheckoutSuccess, token }) {
   const [activeTab, setActiveTab] = useState('sell');
@@ -40,6 +41,7 @@ export default function POSCart({ cart, updateQty, removeFromCart, onCheckoutSuc
       const data = await res.json();
       if (!data.success) throw new Error(data.message || 'Checkout failed');
       setCompletedSale(data.data);
+      notifyInventoryChanged();
       onCheckoutSuccess();
     } catch (err) {
       setErrorMsg(err.message || 'Checkout failed. Check stock levels.');
@@ -74,6 +76,7 @@ export default function POSCart({ cart, updateQty, removeFromCart, onCheckoutSuc
         results.push(data.data);
       }
       setCompletedRefund(results);
+      notifyInventoryChanged();
       onCheckoutSuccess();
     } catch (err) {
       setRefundError(err.message);

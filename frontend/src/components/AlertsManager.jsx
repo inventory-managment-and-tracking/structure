@@ -1,6 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { AlertCircle, CheckCircle2, RefreshCw, Eye, EyeOff } from 'lucide-react';
 
+import { notifyInventoryChanged } from '../utils/inventoryEvents';
+
 export default function AlertsManager({ token, userRole, refreshTrigger }) {
   const [alerts, setAlerts] = useState([]);
   const [showResolved, setShowResolved] = useState(false);
@@ -43,6 +45,7 @@ export default function AlertsManager({ token, userRole, refreshTrigger }) {
       const data = await res.json();
       if (!data.success) throw new Error(data.message || 'Resolve failed');
       fetchAlerts();
+      notifyInventoryChanged();
     } catch (err) {
       alert(err.message);
     }

@@ -7,6 +7,7 @@ import ReportsView from './components/ReportsView';
 import AlertsManager from './components/AlertsManager';
 import UsersManager from './components/UsersManager';
 import Dashboard from './components/Dashboard';
+import { INVENTORY_CHANGED_EVENT } from './utils/inventoryEvents';
 
 // Lucide Icons
 import { 
@@ -104,12 +105,15 @@ export default function App() {
     if (token) {
       fetchDashboardStats();
     }
-  }, [token, refreshAlerts]);
+  }, [token]);
 
   useEffect(() => {
-    const handler = () => fetchDashboardStats();
-    window.addEventListener('stock-changed', handler);
-    return () => window.removeEventListener('stock-changed', handler);
+    const handler = () => {
+      fetchDashboardStats();
+      setRefreshAlerts((prev) => prev + 1);
+    };
+    window.addEventListener(INVENTORY_CHANGED_EVENT, handler);
+    return () => window.removeEventListener(INVENTORY_CHANGED_EVENT, handler);
   }, [token]);
 
   // Listen for global unauthorized events from components
@@ -497,10 +501,7 @@ export default function App() {
                 updateQty={updateQty}
                 removeFromCart={removeFromCart}
                 token={token}
-                onCheckoutSuccess={() => {
-                  setCart([]);
-                  setRefreshAlerts(prev => prev + 1);
-                }}
+                onCheckoutSuccess={() => setCart([])}
               />
             </div>
           </div>
@@ -512,7 +513,6 @@ export default function App() {
             token={token}
             userRole={role}
             addToCart={addToCart}
-            onStockAdjusted={() => setRefreshAlerts(prev => prev + 1)}
           />
         )}
 

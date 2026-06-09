@@ -2,8 +2,9 @@ import React, { useState, useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import { Search, Plus, RefreshCw, Printer, AlertTriangle, X, ArrowRightLeft, Pencil, Trash2 } from 'lucide-react';
 import { formatBirr } from '../utils/formatBirr';
+import { notifyInventoryChanged } from '../utils/inventoryEvents';
 
-export default function ProductList({ token, userRole, addToCart, onStockAdjusted }) {
+export default function ProductList({ token, userRole, addToCart }) {
   const [products, setProducts] = useState([]);
   const [categories, setCategories] = useState([]);
   const [suppliers, setSuppliers] = useState([]);
@@ -239,6 +240,7 @@ export default function ProductList({ token, userRole, addToCart, onStockAdjuste
         low_stock_threshold: '', description: '', sku: ''
       });
       fetchData();
+      notifyInventoryChanged();
     } catch (err) {
       console.error('[ADD PRODUCT ERR]', err);
       setAddError(err.message);
@@ -270,7 +272,7 @@ export default function ProductList({ token, userRole, addToCart, onStockAdjuste
       setShowAdjustModal(false);
       setAdjustData({ quantity_change: '', notes: '' });
       fetchData();
-      window.dispatchEvent(new Event('stock-changed'));
+      notifyInventoryChanged();
     } catch (err) {
       alert(err.message);
     }
@@ -366,6 +368,7 @@ export default function ProductList({ token, userRole, addToCart, onStockAdjuste
       setShowEditModal(false);
       setEditProduct(null);
       fetchData();
+      notifyInventoryChanged();
       showToast(`"${data.data.name}" updated`);
     } catch (err) {
       console.error('[EDIT PRODUCT ERR]', err);
@@ -426,7 +429,7 @@ export default function ProductList({ token, userRole, addToCart, onStockAdjuste
       setShowDeleteModal(false);
       setActiveProduct(null);
       fetchData();
-      if (onStockAdjusted) onStockAdjusted();
+      notifyInventoryChanged();
 
       if (data.data.new_product) {
         showToast(`"${data.data.product.name}" removed — stock moved to "${data.data.new_product.name}"`);

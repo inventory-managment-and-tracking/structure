@@ -3,6 +3,7 @@ import { AreaChart, Area, BarChart, Bar, PieChart, Pie, Cell, ResponsiveContaine
 import { TrendingUp, BarChart3, LineChart, PieChart as PieIcon, ShieldAlert, Award, Calendar, Printer, RefreshCw } from 'lucide-react';
 import { formatBirr } from '../utils/formatBirr';
 import DailyStaffReport from './DailyStaffReport';
+import { INVENTORY_CHANGED_EVENT } from '../utils/inventoryEvents';
 
 export default function ReportsView({ token, userRole }) {
   const [salesSummary, setSalesSummary] = useState(null);
@@ -73,6 +74,12 @@ export default function ReportsView({ token, userRole }) {
 
   useEffect(() => {
     fetchReports();
+  }, [token, dateFrom, dateTo]);
+
+  useEffect(() => {
+    const handler = () => fetchReports();
+    window.addEventListener(INVENTORY_CHANGED_EVENT, handler);
+    return () => window.removeEventListener(INVENTORY_CHANGED_EVENT, handler);
   }, [token, dateFrom, dateTo]);
 
   const handlePresetChange = (selected) => {
