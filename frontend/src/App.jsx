@@ -146,6 +146,16 @@ export default function App() {
         body: JSON.stringify({ username, password })
       });
 
+      const contentType = res.headers.get('content-type') || '';
+      if (!contentType.includes('application/json')) {
+        const text = await res.text();
+        throw new Error(
+          text.includes('FUNCTION_INVOCATION_FAILED')
+            ? 'API server error. Check Vercel backend logs and Postgres connection.'
+            : (text.slice(0, 120) || `Login failed (${res.status})`)
+        );
+      }
+
       const data = await res.json();
       if (!data.success) {
         throw new Error(data.message || 'Authentication failed');

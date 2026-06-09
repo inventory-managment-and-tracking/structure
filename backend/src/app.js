@@ -24,6 +24,11 @@ const errorHandler      = require('./middleware/errorHandler');
 
 const app = express();
 
+// Required on Vercel so rate-limit and req.ip work behind the edge proxy.
+if (process.env.VERCEL) {
+  app.set('trust proxy', 1);
+}
+
 // Vercel Services strips the /api routePrefix before the request reaches Express.
 const API_BASE = process.env.VERCEL ? '' : '/api';
 const apiPath = (segment) => `${API_BASE}${segment}`;

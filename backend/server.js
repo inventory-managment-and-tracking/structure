@@ -2,11 +2,11 @@
 
 require('dotenv').config();
 const app = require('./src/app');
-const pool = require('./src/config/db');
 
 const PORT = process.env.PORT || 3000;
 
 async function start() {
+  const pool = require('./src/config/db');
   try {
     await pool.query('SELECT 1');
     console.log('[DB] PostgreSQL connected successfully');

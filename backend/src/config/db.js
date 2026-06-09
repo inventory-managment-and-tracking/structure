@@ -56,8 +56,8 @@ function buildPool() {
   }
 
   if (process.env.VERCEL) {
-    throw new Error(
-      'Database not configured. In Vercel, create a Postgres database, connect it to the backend service, and redeploy.'
+    console.error(
+      '[DB] No Postgres env vars found. Link Vercel Postgres to the backend service and redeploy.'
     );
   }
 
