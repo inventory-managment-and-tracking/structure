@@ -7,7 +7,7 @@ const ctrl       = require('./alerts.controller');
 const router = Router();
 
 router.get('/',               ctrl.listUnresolved);
-router.get('/all',            authorize('owner', 'manager'), ctrl.listAll);
-router.patch('/:id/resolve',  authorize('owner', 'manager'), ctrl.resolve);
+router.get('/all',            authorize('owner', 'cashier'), ctrl.listAll);
+router.patch('/:id/resolve',  authorize('owner', 'cashier'), ctrl.resolve);
 
 module.exports = router;

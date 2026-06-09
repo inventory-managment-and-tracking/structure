@@ -7,8 +7,8 @@ const ctrl       = require('./users.controller');
 
 const router = Router();
 
-router.get('/',    authorize('owner', 'manager'), ctrl.list);
-router.get('/:id', authorize('owner', 'manager'), ctrl.getOne);
+router.get('/',    authorize('owner', 'cashier'), ctrl.list);
+router.get('/:id', authorize('owner', 'cashier'), ctrl.getOne);
 
 router.post(
   '/',
@@ -17,7 +17,7 @@ router.post(
     body('full_name').trim().notEmpty().withMessage('Full name is required'),
     body('username').trim().notEmpty().withMessage('Username is required'),
     body('password').isLength({ min: 6 }).withMessage('Password must be at least 6 characters'),
-    body('role').optional().isIn(['owner', 'manager', 'cashier']).withMessage('Invalid role'),
+    body('role').optional().isIn(['owner', 'cashier', 'sales']).withMessage('Invalid role'),
   ],
   ctrl.create
 );
@@ -28,7 +28,7 @@ router.patch(
   [
     body('full_name').optional().trim().notEmpty(),
     body('username').optional().trim().notEmpty(),
-    body('role').optional().isIn(['owner', 'manager', 'cashier']),
+    body('role').optional().isIn(['owner', 'cashier', 'sales']),
     body('is_active').optional().isBoolean(),
   ],
   ctrl.update

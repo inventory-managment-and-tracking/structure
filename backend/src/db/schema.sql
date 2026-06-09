@@ -4,7 +4,7 @@
 -- ============================================================
 
 -- ── ENUM TYPES ──────────────────────────────────────────────
-CREATE TYPE user_role AS ENUM ('owner', 'manager', 'cashier');
+CREATE TYPE user_role AS ENUM ('owner', 'cashier', 'sales');
 
 CREATE TYPE movement_type AS ENUM (
   'stock_in', 'sale', 'adjustment', 'return', 'damaged'
@@ -43,7 +43,7 @@ CREATE TABLE IF NOT EXISTS users (
   full_name     VARCHAR(100)  NOT NULL,
   username      VARCHAR(50)   NOT NULL UNIQUE,
   password_hash VARCHAR(255)  NOT NULL,
-  role          user_role     NOT NULL DEFAULT 'cashier',
+  role          user_role     NOT NULL DEFAULT 'sales',
   is_active     BOOLEAN       NOT NULL DEFAULT TRUE,
   created_at    TIMESTAMPTZ   NOT NULL DEFAULT NOW(),
   last_login    TIMESTAMPTZ
