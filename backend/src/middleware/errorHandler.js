@@ -30,9 +30,19 @@ function errorHandler(err, req, res, _next) {
     });
   }
 
+  const isDbConnectionError =
+    err.code === 'ECONNREFUSED' ||
+    err.code === 'ENOTFOUND' ||
+    err.code === 'ETIMEDOUT' ||
+    /connect ECONNREFUSED/i.test(err.message || '');
+
+  const message = isDbConnectionError && process.env.NODE_ENV === 'production'
+    ? 'Database connection failed. Check that Postgres is linked to this deployment.'
+    : (err.message || 'Internal server error');
+
   res.status(status).json({
     success: false,
-    message: err.message || 'Internal server error',
+    message,
     ...(process.env.NODE_ENV !== 'production' && { stack: err.stack }),
   });
 }
