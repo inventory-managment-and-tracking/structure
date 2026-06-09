@@ -48,6 +48,10 @@ app.get('/health', (_req, res) => {
   res.json({ success: true, message: 'ClothTrack API is running', timestamp: new Date() });
 });
 
+app.get('/api/health', (_req, res) => {
+  res.json({ success: true, message: 'ClothTrack API is running', timestamp: new Date() });
+});
+
 // ── Public routes (no JWT required) ───────────────────────────
 app.use('/api/auth', authRoutes);
 

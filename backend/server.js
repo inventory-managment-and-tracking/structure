@@ -21,4 +21,9 @@ async function start() {
   }
 }
 
-start();
+// Local / Railway: run as a standalone server. Vercel Services: export the app.
+if (require.main === module) {
+  start();
+}
+
+module.exports = app;
