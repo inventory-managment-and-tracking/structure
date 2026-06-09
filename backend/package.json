@@ -8,12 +8,14 @@
     "dev": "nodemon server.js",
     "db:schema": "psql -U postgres -d clothtrack -f src/db/schema.sql",
     "db:seed": "psql -U postgres -d clothtrack -f src/db/seed.sql",
-    "db:migrate-roles": "node src/db/run-migrate-roles.js"
+    "db:migrate-roles": "node src/db/run-migrate-roles.js",
+    "db:setup-vercel": "node scripts/setup-vercel-db.js"
   },
   "engines": {
     "node": ">=18.0.0"
   },
   "dependencies": {
+    "@neondatabase/serverless": "^1.1.0",
     "bcryptjs": "^2.4.3",
     "cors": "^2.8.5",
     "dotenv": "^16.4.5",

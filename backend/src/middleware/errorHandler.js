@@ -1,5 +1,7 @@
 'use strict';
 
+const { getDbStatus } = require('../config/db');
+
 function errorHandler(err, req, res, _next) {
   const status = err.status || err.statusCode || 500;
 
@@ -34,11 +36,17 @@ function errorHandler(err, req, res, _next) {
     err.code === 'ECONNREFUSED' ||
     err.code === 'ENOTFOUND' ||
     err.code === 'ETIMEDOUT' ||
+    err.code === '42P01' ||
     /connect ECONNREFUSED/i.test(err.message || '');
 
-  const message = isDbConnectionError && process.env.NODE_ENV === 'production'
-    ? 'Database connection failed. Check that Postgres is linked to this deployment.'
-    : (err.message || 'Internal server error');
+  let message = err.message || 'Internal server error';
+
+  if (isDbConnectionError && process.env.NODE_ENV === 'production') {
+    const dbStatus = getDbStatus();
+    message = dbStatus.configured
+      ? 'Database connection failed. Confirm Postgres is running and schema.sql was applied.'
+      : 'Postgres not linked. Vercel → Storage → Postgres → Connect to Project → Redeploy.';
+  }
 
   res.status(status).json({
     success: false,

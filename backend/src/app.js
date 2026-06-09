@@ -21,6 +21,8 @@ const reportsRoutes    = require('./modules/reports/reports.routes');
 
 const { authenticate }  = require('./middleware/auth');
 const errorHandler      = require('./middleware/errorHandler');
+const pool              = require('./config/db');
+const { getDbStatus }   = require('./config/db');
 
 const app = express();
 
@@ -43,8 +45,35 @@ app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
 // ── Health check (before rate limiter when API_BASE is empty) ─
-const healthHandler = (_req, res) => {
-  res.json({ success: true, message: 'ClothTrack API is running', timestamp: new Date() });
+const healthHandler = async (_req, res) => {
+  const dbStatus = getDbStatus();
+  const payload = {
+    success: true,
+    message: 'ClothTrack API is running',
+    timestamp: new Date(),
+    db: dbStatus,
+  };
+
+  if (!dbStatus.configured) {
+    return res.status(503).json({
+      ...payload,
+      success: false,
+      message: 'Postgres env vars missing. Link Vercel Postgres to this project and redeploy.',
+    });
+  }
+
+  try {
+    await pool.query('SELECT 1');
+    payload.db = { ...dbStatus, connected: true };
+    return res.json(payload);
+  } catch (err) {
+    return res.status(503).json({
+      ...payload,
+      success: false,
+      message: 'Database connection failed',
+      db: { ...dbStatus, connected: false, error: err.code || err.message },
+    });
+  }
 };
 app.get('/health', healthHandler);
 app.get(apiPath('/health'), healthHandler);
