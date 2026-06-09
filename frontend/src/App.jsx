@@ -31,8 +31,8 @@ export default function App() {
   const [refreshAlerts, setRefreshAlerts] = useState(0);
 
   // Login form state
-  const [username, setUsername] = useState('admin');
-  const [password, setPassword] = useState('admin123');
+  const [username, setUsername] = useState('');
+  const [password, setPassword] = useState('');
   const [loginError, setLoginError] = useState('');
   const [isLoggingIn, setIsLoggingIn] = useState(false);
 
@@ -53,6 +53,8 @@ export default function App() {
     localStorage.removeItem('user');
     setToken('');
     setUser(null);
+    setUsername('');
+    setPassword('');
     setCart([]);
     setActiveTab('dashboard');
   }, []);
@@ -225,13 +227,14 @@ export default function App() {
 
           {loginError && <div className="auth-error">{loginError}</div>}
 
-          <form onSubmit={handleLogin}>
+          <form onSubmit={handleLogin} autoComplete="off">
             <div className="form-group">
               <label className="form-label">Username</label>
               <input
                 type="text"
                 required
-                placeholder="admin"
+                placeholder="Enter username"
+                autoComplete="username"
                 value={username}
                 onChange={(e) => setUsername(e.target.value)}
               />
@@ -242,7 +245,8 @@ export default function App() {
               <input
                 type="password"
                 required
-                placeholder="••••••••"
+                placeholder="Enter password"
+                autoComplete="current-password"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
               />
