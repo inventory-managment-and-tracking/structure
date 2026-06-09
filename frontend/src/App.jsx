@@ -11,7 +11,7 @@ import Dashboard from './components/Dashboard';
 // Lucide Icons
 import { 
   LayoutDashboard, ShoppingCart, Shirt, BarChart3, AlertCircle, LogOut, 
-  User, AlertTriangle, ShieldAlert, Search, Users
+  User, AlertTriangle, Search, Users, Menu, X
 } from 'lucide-react';
 
 const ROLE_LABELS = {
@@ -29,6 +29,7 @@ export default function App() {
     return savedUser?.role === 'sales' ? 'pos' : 'dashboard';
   });
   const [refreshAlerts, setRefreshAlerts] = useState(0);
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
   // Login form state
   const [username, setUsername] = useState('');
@@ -57,7 +58,13 @@ export default function App() {
     setPassword('');
     setCart([]);
     setActiveTab('dashboard');
+    setMobileMenuOpen(false);
   }, []);
+
+  const handleNavClick = (tab) => {
+    setActiveTab(tab);
+    setMobileMenuOpen(false);
+  };
 
   // Fetch critical alerts count & summary dashboard statistics
   const fetchDashboardStats = async () => {
@@ -113,6 +120,19 @@ export default function App() {
     window.addEventListener('unauthorized', handleUnauthorized);
     return () => window.removeEventListener('unauthorized', handleUnauthorized);
   }, [handleLogout]);
+
+  useEffect(() => {
+    if (!mobileMenuOpen) return;
+    const onKeyDown = (e) => {
+      if (e.key === 'Escape') setMobileMenuOpen(false);
+    };
+    document.body.style.overflow = 'hidden';
+    window.addEventListener('keydown', onKeyDown);
+    return () => {
+      document.body.style.overflow = '';
+      window.removeEventListener('keydown', onKeyDown);
+    };
+  }, [mobileMenuOpen]);
 
   // Authenticate user via JWT
   const handleLogin = async (e) => {
@@ -267,8 +287,32 @@ export default function App() {
 
   return (
     <div className="app-container">
-      {/* 1. SIDEBAR (Desktop) */}
-      <aside className="sidebar">
+      <header className="mobile-header">
+        <div className="mobile-header-brand">
+          <div className="brand-logo">👕</div>
+          <span className="brand-name">ClothTrack</span>
+        </div>
+        <button
+          type="button"
+          className="mobile-menu-toggle"
+          onClick={() => setMobileMenuOpen((open) => !open)}
+          aria-label={mobileMenuOpen ? 'Close menu' : 'Open menu'}
+          aria-expanded={mobileMenuOpen}
+        >
+          {mobileMenuOpen ? <X size={22} /> : <Menu size={22} />}
+        </button>
+      </header>
+
+      {mobileMenuOpen && (
+        <div
+          className="sidebar-backdrop"
+          onClick={() => setMobileMenuOpen(false)}
+          aria-hidden="true"
+        />
+      )}
+
+      {/* Sidebar — desktop always visible; mobile slide-in drawer */}
+      <aside className={`sidebar${mobileMenuOpen ? ' sidebar--open' : ''}`}>
         <div className="brand-section">
           <div className="brand-logo">👕</div>
           <span className="brand-name">ClothTrack</span>
@@ -277,7 +321,7 @@ export default function App() {
         <nav className="nav-links">
           {!isSales && (
             <button
-              onClick={() => setActiveTab('dashboard')}
+              onClick={() => handleNavClick('dashboard')}
               className={`nav-item ${activeTab === 'dashboard' ? 'active' : ''}`}
             >
               <LayoutDashboard size={18} /> Dashboard
@@ -285,14 +329,14 @@ export default function App() {
           )}
 
           <button
-            onClick={() => setActiveTab('pos')}
+            onClick={() => handleNavClick('pos')}
             className={`nav-item ${activeTab === 'pos' ? 'active' : ''}`}
           >
             <ShoppingCart size={18} /> POS Checkout
           </button>
 
           <button
-            onClick={() => setActiveTab('inventory')}
+            onClick={() => handleNavClick('inventory')}
             className={`nav-item ${activeTab === 'inventory' ? 'active' : ''}`}
           >
             <Shirt size={18} /> Inventory Catalog
@@ -300,7 +344,7 @@ export default function App() {
 
           {!isSales && (
             <button
-              onClick={() => setActiveTab('reports')}
+              onClick={() => handleNavClick('reports')}
               className={`nav-item ${activeTab === 'reports' ? 'active' : ''}`}
             >
               <BarChart3 size={18} /> Reports & Charts
@@ -309,7 +353,7 @@ export default function App() {
 
           {isOwner && (
             <button
-              onClick={() => setActiveTab('users')}
+              onClick={() => handleNavClick('users')}
               className={`nav-item ${activeTab === 'users' ? 'active' : ''}`}
             >
               <Users size={18} /> Staff Management
@@ -317,7 +361,7 @@ export default function App() {
           )}
 
           <button
-            onClick={() => setActiveTab('alerts')}
+            onClick={() => handleNavClick('alerts')}
             className={`nav-item ${activeTab === 'alerts' ? 'active' : ''}`}
             style={{ display: 'flex', justifyContent: 'space-between', width: '100%' }}
           >
@@ -348,51 +392,7 @@ export default function App() {
         </div>
       </aside>
 
-      {/* 2. MOBILE NAVBAR (Tab bar) */}
-      <nav className="mobile-nav">
-        {!isSales && (
-          <button onClick={() => setActiveTab('dashboard')} className={`mobile-nav-item ${activeTab === 'dashboard' ? 'active' : ''}`}>
-            <LayoutDashboard size={20} />
-            <span>Dashboard</span>
-          </button>
-        )}
-
-        <button onClick={() => setActiveTab('pos')} className={`mobile-nav-item ${activeTab === 'pos' ? 'active' : ''}`}>
-          <ShoppingCart size={20} />
-          <span>Checkout</span>
-        </button>
-
-        <button onClick={() => setActiveTab('inventory')} className={`mobile-nav-item ${activeTab === 'inventory' ? 'active' : ''}`}>
-          <Shirt size={20} />
-          <span>Catalog</span>
-        </button>
-
-        {!isSales && (
-          <button onClick={() => setActiveTab('reports')} className={`mobile-nav-item ${activeTab === 'reports' ? 'active' : ''}`}>
-            <BarChart3 size={20} />
-            <span>Reports</span>
-          </button>
-        )}
-
-        {isOwner && (
-          <button onClick={() => setActiveTab('users')} className={`mobile-nav-item ${activeTab === 'users' ? 'active' : ''}`}>
-            <Users size={20} />
-            <span>Staff</span>
-          </button>
-        )}
-
-        <button onClick={() => setActiveTab('alerts')} className={`mobile-nav-item ${activeTab === 'alerts' ? 'active' : ''}`} style={{ position: 'relative' }}>
-          <AlertCircle size={20} />
-          <span>Alerts</span>
-          {activeAlertsCount > 0 && (
-            <span style={{ position: 'absolute', top: '4px', right: '16px', background: 'var(--danger-color)', color: '#fff', fontSize: '9px', fontWeight: 'bold', minWidth: '14px', height: '14px', borderRadius: '50%', display: 'flex', alignItems: 'center', justifySelf: 'center', justifyContent: 'center' }}>
-              {activeAlertsCount}
-            </span>
-          )}
-        </button>
-      </nav>
-
-      {/* 3. PRIMARY CONTENT AREA */}
+      {/* PRIMARY CONTENT AREA */}
       <main className="content-area">
         
         {/* Active Low Stock Alerts Warning Ticker Banner */}
@@ -405,7 +405,7 @@ export default function App() {
               </span>
             </div>
             <span 
-              onClick={() => setActiveTab('alerts')} 
+              onClick={() => handleNavClick('alerts')} 
               className="alerts-ticker-resolve-link"
             >
               Resolve Alerts →
