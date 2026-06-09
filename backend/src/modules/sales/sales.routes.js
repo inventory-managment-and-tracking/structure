@@ -7,7 +7,7 @@ const ctrl       = require('./sales.controller');
 
 const router = Router();
 
-router.get('/',    authorize('owner', 'manager'), ctrl.list);
+router.get('/',    authorize('owner', 'cashier'), ctrl.list);
 router.get('/:id', ctrl.getOne);
 
 router.post(

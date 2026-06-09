@@ -6,7 +6,7 @@ const ctrl       = require('./stock.controller');
 
 const router = Router();
 
-router.get('/',                    authorize('owner', 'manager'), ctrl.list);
+router.get('/',                    authorize('owner', 'cashier'), ctrl.list);
 router.get('/product/:productId',  ctrl.listForProduct);
 
 module.exports = router;

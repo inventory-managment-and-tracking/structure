@@ -5,25 +5,35 @@ import POSCart from './components/POSCart';
 import ProductList from './components/ProductList';
 import ReportsView from './components/ReportsView';
 import AlertsManager from './components/AlertsManager';
+import UsersManager from './components/UsersManager';
+import Dashboard from './components/Dashboard';
 
 // Lucide Icons
 import { 
   LayoutDashboard, ShoppingCart, Shirt, BarChart3, AlertCircle, LogOut, 
-  User, RefreshCw, AlertTriangle, ShieldAlert, Award, TrendingUp, Search
+  User, AlertTriangle, Search, Users, Menu, X
 } from 'lucide-react';
+
+const ROLE_LABELS = {
+  owner: 'Owner',
+  cashier: 'Cashier',
+  sales: 'Sales',
+  manager: 'Cashier', // legacy DB value — run npm run db:migrate-roles
+};
 
 export default function App() {
   const [token, setToken] = useState(localStorage.getItem('token') || '');
   const [user, setUser] = useState(JSON.parse(localStorage.getItem('user')) || null);
   const [activeTab, setActiveTab] = useState(() => {
     const savedUser = JSON.parse(localStorage.getItem('user'));
-    return savedUser?.role === 'cashier' ? 'pos' : 'dashboard';
+    return savedUser?.role === 'sales' ? 'pos' : 'dashboard';
   });
   const [refreshAlerts, setRefreshAlerts] = useState(0);
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
   // Login form state
-  const [username, setUsername] = useState('admin');
-  const [password, setPassword] = useState('admin123');
+  const [username, setUsername] = useState('');
+  const [password, setPassword] = useState('');
   const [loginError, setLoginError] = useState('');
   const [isLoggingIn, setIsLoggingIn] = useState(false);
 
@@ -44,9 +54,17 @@ export default function App() {
     localStorage.removeItem('user');
     setToken('');
     setUser(null);
+    setUsername('');
+    setPassword('');
     setCart([]);
     setActiveTab('dashboard');
+    setMobileMenuOpen(false);
   }, []);
+
+  const handleNavClick = (tab) => {
+    setActiveTab(tab);
+    setMobileMenuOpen(false);
+  };
 
   // Fetch critical alerts count & summary dashboard statistics
   const fetchDashboardStats = async () => {
@@ -103,6 +121,19 @@ export default function App() {
     return () => window.removeEventListener('unauthorized', handleUnauthorized);
   }, [handleLogout]);
 
+  useEffect(() => {
+    if (!mobileMenuOpen) return;
+    const onKeyDown = (e) => {
+      if (e.key === 'Escape') setMobileMenuOpen(false);
+    };
+    document.body.style.overflow = 'hidden';
+    window.addEventListener('keydown', onKeyDown);
+    return () => {
+      document.body.style.overflow = '';
+      window.removeEventListener('keydown', onKeyDown);
+    };
+  }, [mobileMenuOpen]);
+
   // Authenticate user via JWT
   const handleLogin = async (e) => {
     e.preventDefault();
@@ -126,6 +157,7 @@ export default function App() {
 
       setToken(jwtToken);
       setUser(userProfile);
+      setActiveTab(userProfile.role === 'sales' ? 'pos' : 'dashboard');
     } catch (err) {
       console.error('[LOGIN ERR]', err);
       setLoginError(err.message || 'Failed to login');
@@ -215,13 +247,14 @@ export default function App() {
 
           {loginError && <div className="auth-error">{loginError}</div>}
 
-          <form onSubmit={handleLogin}>
+          <form onSubmit={handleLogin} autoComplete="off">
             <div className="form-group">
               <label className="form-label">Username</label>
               <input
                 type="text"
                 required
-                placeholder="admin"
+                placeholder="Enter username"
+                autoComplete="username"
                 value={username}
                 onChange={(e) => setUsername(e.target.value)}
               />
@@ -232,7 +265,8 @@ export default function App() {
               <input
                 type="password"
                 required
-                placeholder="••••••••"
+                placeholder="Enter password"
+                autoComplete="current-password"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
               />
@@ -247,22 +281,47 @@ export default function App() {
     );
   }
 
-  const role = user?.role || 'cashier';
-  const isEmployee = role === 'cashier';
+  const role = user?.role || 'sales';
+  const isSales = role === 'sales';
+  const isOwner = role === 'owner';
 
   return (
     <div className="app-container">
-      {/* 1. SIDEBAR (Desktop) */}
-      <aside className="sidebar">
+      <header className="mobile-header">
+        <div className="mobile-header-brand">
+          <div className="brand-logo">👕</div>
+          <span className="brand-name">ClothTrack</span>
+        </div>
+        <button
+          type="button"
+          className="mobile-menu-toggle"
+          onClick={() => setMobileMenuOpen((open) => !open)}
+          aria-label={mobileMenuOpen ? 'Close menu' : 'Open menu'}
+          aria-expanded={mobileMenuOpen}
+        >
+          {mobileMenuOpen ? <X size={22} /> : <Menu size={22} />}
+        </button>
+      </header>
+
+      {mobileMenuOpen && (
+        <div
+          className="sidebar-backdrop"
+          onClick={() => setMobileMenuOpen(false)}
+          aria-hidden="true"
+        />
+      )}
+
+      {/* Sidebar — desktop always visible; mobile slide-in drawer */}
+      <aside className={`sidebar${mobileMenuOpen ? ' sidebar--open' : ''}`}>
         <div className="brand-section">
           <div className="brand-logo">👕</div>
           <span className="brand-name">ClothTrack</span>
         </div>
 
         <nav className="nav-links">
-          {!isEmployee && (
+          {!isSales && (
             <button
-              onClick={() => setActiveTab('dashboard')}
+              onClick={() => handleNavClick('dashboard')}
               className={`nav-item ${activeTab === 'dashboard' ? 'active' : ''}`}
             >
               <LayoutDashboard size={18} /> Dashboard
@@ -270,30 +329,39 @@ export default function App() {
           )}
 
           <button
-            onClick={() => setActiveTab('pos')}
+            onClick={() => handleNavClick('pos')}
             className={`nav-item ${activeTab === 'pos' ? 'active' : ''}`}
           >
             <ShoppingCart size={18} /> POS Checkout
           </button>
 
           <button
-            onClick={() => setActiveTab('inventory')}
+            onClick={() => handleNavClick('inventory')}
             className={`nav-item ${activeTab === 'inventory' ? 'active' : ''}`}
           >
             <Shirt size={18} /> Inventory Catalog
           </button>
 
-          {!isEmployee && (
+          {!isSales && (
             <button
-              onClick={() => setActiveTab('reports')}
+              onClick={() => handleNavClick('reports')}
               className={`nav-item ${activeTab === 'reports' ? 'active' : ''}`}
             >
               <BarChart3 size={18} /> Reports & Charts
             </button>
           )}
 
+          {isOwner && (
+            <button
+              onClick={() => handleNavClick('users')}
+              className={`nav-item ${activeTab === 'users' ? 'active' : ''}`}
+            >
+              <Users size={18} /> Staff Management
+            </button>
+          )}
+
           <button
-            onClick={() => setActiveTab('alerts')}
+            onClick={() => handleNavClick('alerts')}
             className={`nav-item ${activeTab === 'alerts' ? 'active' : ''}`}
             style={{ display: 'flex', justifyContent: 'space-between', width: '100%' }}
           >
@@ -315,7 +383,7 @@ export default function App() {
             </div>
             <div className="user-info">
               <span className="user-name">{user?.full_name}</span>
-              <span className="user-role">{user?.role}</span>
+              <span className="user-role">{ROLE_LABELS[user?.role] || user?.role}</span>
             </div>
           </div>
           <button onClick={handleLogout} className="logout-btn" title="Sign Out">
@@ -324,44 +392,7 @@ export default function App() {
         </div>
       </aside>
 
-      {/* 2. MOBILE NAVBAR (Tab bar) */}
-      <nav className="mobile-nav">
-        {!isEmployee && (
-          <button onClick={() => setActiveTab('dashboard')} className={`mobile-nav-item ${activeTab === 'dashboard' ? 'active' : ''}`}>
-            <LayoutDashboard size={20} />
-            <span>Dashboard</span>
-          </button>
-        )}
-
-        <button onClick={() => setActiveTab('pos')} className={`mobile-nav-item ${activeTab === 'pos' ? 'active' : ''}`}>
-          <ShoppingCart size={20} />
-          <span>Checkout</span>
-        </button>
-
-        <button onClick={() => setActiveTab('inventory')} className={`mobile-nav-item ${activeTab === 'inventory' ? 'active' : ''}`}>
-          <Shirt size={20} />
-          <span>Catalog</span>
-        </button>
-
-        {!isEmployee && (
-          <button onClick={() => setActiveTab('reports')} className={`mobile-nav-item ${activeTab === 'reports' ? 'active' : ''}`}>
-            <BarChart3 size={20} />
-            <span>Reports</span>
-          </button>
-        )}
-
-        <button onClick={() => setActiveTab('alerts')} className={`mobile-nav-item ${activeTab === 'alerts' ? 'active' : ''}`} style={{ position: 'relative' }}>
-          <AlertCircle size={20} />
-          <span>Alerts</span>
-          {activeAlertsCount > 0 && (
-            <span style={{ position: 'absolute', top: '4px', right: '16px', background: 'var(--danger-color)', color: '#fff', fontSize: '9px', fontWeight: 'bold', minWidth: '14px', height: '14px', borderRadius: '50%', display: 'flex', alignItems: 'center', justifySelf: 'center', justifyContent: 'center' }}>
-              {activeAlertsCount}
-            </span>
-          )}
-        </button>
-      </nav>
-
-      {/* 3. PRIMARY CONTENT AREA */}
+      {/* PRIMARY CONTENT AREA */}
       <main className="content-area">
         
         {/* Active Low Stock Alerts Warning Ticker Banner */}
@@ -374,7 +405,7 @@ export default function App() {
               </span>
             </div>
             <span 
-              onClick={() => setActiveTab('alerts')} 
+              onClick={() => handleNavClick('alerts')} 
               className="alerts-ticker-resolve-link"
             >
               Resolve Alerts →
@@ -383,98 +414,17 @@ export default function App() {
         )}
 
         {/* Tab View 1: Dashboard overview */}
-        {activeTab === 'dashboard' && !isEmployee && (
-          <div className="animate-fade">
-            <div className="page-header">
-              <div className="page-title-section">
-                <h2 className="page-title">Management Console</h2>
-                <p className="page-description">Quick statistics and operational indexes overview</p>
-              </div>
-              <button 
-                onClick={fetchDashboardStats} 
-                className="btn-secondary" 
-                style={{ padding: '12px' }}
-                title="Refresh dashboard stats"
-              >
-                <RefreshCw size={14} />
-              </button>
-            </div>
-
-            {/* Dashboard widgets */}
-            <div className="metrics-grid">
-              <div className="metric-card bg-glass">
-                <div className="metric-header">
-                  <span className="metric-title">Gross Revenue</span>
-                  <div className="metric-icon-wrapper" style={{ background: 'var(--primary-glow)', color: 'var(--primary-color)' }}>
-                    <TrendingUp size={18} />
-                  </div>
-                </div>
-                <div className="metric-value text-gold">${parseFloat(dbSalesSummary?.total_revenue || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</div>
-                <div className="metric-sub">Across {dbSalesSummary?.total_sales || 0} POS checkout tickets</div>
-              </div>
-
-              <div className="metric-card bg-glass">
-                <div className="metric-header">
-                  <span className="metric-title">Catalog Inventory Size</span>
-                  <div className="metric-icon-wrapper" style={{ background: 'rgba(59, 130, 246, 0.15)', color: '#3b82f6' }}>
-                    <Shirt size={18} />
-                  </div>
-                </div>
-                <div className="metric-value">{dbStockSummary?.total_units || 0} units</div>
-                <div className="metric-sub">Currently registered stock shelf assets</div>
-              </div>
-
-              <div className="metric-card bg-glass">
-                <div className="metric-header">
-                  <span className="metric-title">Warehouse Worth (Retail)</span>
-                  <div className="metric-icon-wrapper" style={{ background: 'var(--success-glow)', color: 'var(--success-color)' }}>
-                    <Award size={18} />
-                  </div>
-                </div>
-                <div className="metric-value" style={{ color: 'var(--success-color)' }}>
-                  ${parseFloat(dbStockSummary?.total_retail_value || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                </div>
-                <div className="metric-sub">Expected sales asset cash conversion</div>
-              </div>
-
-              <div className="metric-card bg-glass">
-                <div className="metric-header">
-                  <span className="metric-title">Active Alert Warnings</span>
-                  <div className="metric-icon-wrapper" style={{ background: activeAlertsCount > 0 ? 'var(--danger-glow)' : 'var(--success-glow)', color: activeAlertsCount > 0 ? 'var(--danger-color)' : 'var(--success-color)' }}>
-                    <AlertCircle size={18} />
-                  </div>
-                </div>
-                <div className="metric-value" style={{ color: activeAlertsCount > 0 ? 'var(--danger-color)' : 'var(--success-color)' }}>
-                  {activeAlertsCount} Warning{activeAlertsCount !== 1 ? 's' : ''}
-                </div>
-                <div className="metric-sub">{activeAlertsCount > 0 ? 'Urgent catalog replenishment required' : 'Product shelf counts healthy'}</div>
-              </div>
-            </div>
-
-            {/* Quick dashboard operations card info */}
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '24px', flexWrap: 'wrap', marginTop: '24px' }}>
-              <div className="bg-glass" style={{ padding: '24px', borderRadius: '14px' }}>
-                <h3 style={{ fontSize: '16px', marginBottom: '8px' }}>🚀 Quick POS Checkout Launch</h3>
-                <p style={{ fontSize: '13px', color: 'var(--text-muted)', marginBottom: '16px' }}>
-                  Need to process a quick checkout or scan tags? Fire up the POS cashier terminal interface optimized for phone cameras.
-                </p>
-                <button onClick={() => setActiveTab('pos')} className="btn-primary" style={{ fontSize: '13px' }}>
-                  Open POS terminal →
-                </button>
-              </div>
-
-              <div className="bg-glass" style={{ padding: '24px', borderRadius: '14px' }}>
-                <h3 style={{ fontSize: '16px', marginBottom: '8px' }}>📝 Default Staff Credentials</h3>
-                <p style={{ fontSize: '13px', color: 'var(--text-muted)' }}>
-                  System seed user login parameters for testing other operations:
-                </p>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', fontSize: '12px', marginTop: '12px' }}>
-                  <div>• Role <strong>Owner / Manager</strong>: username <code>admin</code> / password <code>admin123</code></div>
-                  <div>• Role <strong>Cashier</strong>: Add a custom cashier user in the database or via staff CRUD!</div>
-                </div>
-              </div>
-            </div>
-          </div>
+        {activeTab === 'dashboard' && !isSales && (
+          <Dashboard
+            user={user}
+            dbSalesSummary={dbSalesSummary}
+            dbStockSummary={dbStockSummary}
+            dbLoading={dbLoading}
+            activeAlertsCount={activeAlertsCount}
+            isOwner={isOwner}
+            onRefresh={fetchDashboardStats}
+            onNavigate={setActiveTab}
+          />
         )}
 
         {/* Tab View 2: POS Cashier checkout with QR scanner support */}
@@ -557,7 +507,7 @@ export default function App() {
         )}
 
         {/* Tab View 4: Reports charts and valuation dashboard */}
-        {activeTab === 'reports' && !isEmployee && (
+        {activeTab === 'reports' && !isSales && (
           <ReportsView 
             token={token}
             userRole={role}
@@ -571,6 +521,11 @@ export default function App() {
             userRole={role}
             refreshTrigger={refreshAlerts}
           />
+        )}
+
+        {/* Tab View 6: Owner staff management */}
+        {activeTab === 'users' && isOwner && (
+          <UsersManager token={token} currentUserId={user.id} />
         )}
 
       </main>

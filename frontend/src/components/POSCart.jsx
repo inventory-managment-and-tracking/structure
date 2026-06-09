@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { ShoppingBag, Trash2, CheckCircle, RotateCcw } from 'lucide-react';
+import { formatBirr } from '../utils/formatBirr';
 
 export default function POSCart({ cart, updateQty, removeFromCart, onCheckoutSuccess, token }) {
   const [activeTab, setActiveTab] = useState('sell');
@@ -139,7 +140,7 @@ export default function POSCart({ cart, updateQty, removeFromCart, onCheckoutSuc
                   <span style={{ fontSize: '13px', fontWeight: '600', minWidth: '16px', textAlign: 'center' }}>{item.quantity}</span>
                   <button onClick={() => updateQty(item.id, 1)} className="qty-btn">+</button>
                   <div className="cart-item-price-calc">
-                    <div className="cart-item-price mono">${(item.unit_price * item.quantity).toFixed(2)}</div>
+                    <div className="cart-item-price mono">{formatBirr(item.unit_price * item.quantity)}</div>
                   </div>
                   <button onClick={() => removeFromCart(item.id)} style={{ color: 'var(--text-dim)', padding: '4px' }}>
                     <Trash2 size={14} />
@@ -153,7 +154,7 @@ export default function POSCart({ cart, updateQty, removeFromCart, onCheckoutSuc
         <div className="cart-summary-calculations">
           <div className="calc-row total">
             <span>Total</span>
-            <span className="mono">${total.toFixed(2)}</span>
+            <span className="mono">{formatBirr(total)}</span>
           </div>
         </div>
 
@@ -166,7 +167,7 @@ export default function POSCart({ cart, updateQty, removeFromCart, onCheckoutSuc
               </div>
             )}
             <button onClick={handleCheckout} disabled={cart.length === 0 || isSubmitting} className="checkout-btn">
-              {isSubmitting ? 'Processing...' : `Confirm Sale — $${total.toFixed(2)}`}
+              {isSubmitting ? 'Processing...' : `Confirm Sale — ${formatBirr(total)}`}
             </button>
           </>
         )}
@@ -219,7 +220,7 @@ export default function POSCart({ cart, updateQty, removeFromCart, onCheckoutSuc
                   <input
                     type="number"
                     step="0.01"
-                    placeholder={`$${total.toFixed(2)}`}
+                    placeholder={formatBirr(total)}
                     value={refundForm.refund_amount}
                     onChange={e => setRefundForm({ ...refundForm, refund_amount: e.target.value })}
                   />
@@ -248,7 +249,7 @@ export default function POSCart({ cart, updateQty, removeFromCart, onCheckoutSuc
               className="checkout-btn"
               style={{ background: 'var(--danger-color)', boxShadow: '0 4px 12px var(--danger-glow)' }}
             >
-              {isRefunding ? 'Processing...' : `Process Refund — $${total.toFixed(2)}`}
+              {isRefunding ? 'Processing...' : `Process Refund — ${formatBirr(total)}`}
             </button>
           </>
         )}
@@ -269,14 +270,14 @@ export default function POSCart({ cart, updateQty, removeFromCart, onCheckoutSuc
               {completedSale.items.map((item, idx) => (
                 <div key={idx} style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '6px', fontSize: '13px' }}>
                   <span>{item.product_name} ×{item.quantity}</span>
-                  <span>${parseFloat(item.subtotal).toFixed(2)}</span>
+                  <span>{formatBirr(item.subtotal)}</span>
                 </div>
               ))}
             </div>
             <div className="receipt-dashed-line" />
             <div className="receipt-totals" style={{ fontSize: '15px', marginTop: '8px' }}>
               <span>Total:</span>
-              <span>${parseFloat(completedSale.total_amount).toFixed(2)}</span>
+              <span>{formatBirr(completedSale.total_amount)}</span>
             </div>
             <button onClick={() => setCompletedSale(null)} className="receipt-dismiss-btn" style={{ marginTop: '20px' }}>Done</button>
           </div>
