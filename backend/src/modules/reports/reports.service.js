@@ -214,6 +214,7 @@ async function dailyStaffActivity(date) {
          si.quantity,
          si.unit_price,
          si.subtotal,
+         si.is_discounted,
          p.name        AS product_name,
          p.sku         AS product_sku
        FROM sales s
@@ -290,6 +291,7 @@ async function dailyStaffActivity(date) {
       quantity: row.quantity,
       unit_price: row.unit_price,
       subtotal: row.subtotal,
+      is_discounted: row.is_discounted,
     });
   }
 
@@ -345,9 +347,105 @@ async function salesTrend(filters = {}) {
   return rows;
 }
 
+// ── Personal sales report for logged-in staff ───────────────
+async function myReport(userId, filters = {}) {
+  const now = new Date();
+  const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  const todayEnd = new Date(todayStart);
+  todayEnd.setHours(23, 59, 59, 999);
+
+  const thisMonthStart = new Date(now.getFullYear(), now.getMonth(), 1);
+  const lastMonthStart = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+  const lastMonthEnd = new Date(now.getFullYear(), now.getMonth(), 0, 23, 59, 59, 999);
+
+  async function bucketSummary(dateFrom, dateTo) {
+    const { rows } = await pool.query(
+      `SELECT
+         COUNT(DISTINCT s.id)::int                        AS sales_count,
+         COALESCE(SUM(si.quantity), 0)::int               AS items_sold,
+         COALESCE(SUM(s.total_amount), 0)::numeric(12,2) AS total_revenue
+       FROM sales s
+       LEFT JOIN sale_items si ON si.sale_id = s.id
+       WHERE s.sold_by = $1
+         AND s.created_at >= $2
+         AND s.created_at <= $3`,
+      [userId, dateFrom, dateTo]
+    );
+    return rows[0];
+  }
+
+  let historyFrom = thisMonthStart;
+  let historyTo = todayEnd;
+
+  if (filters.date_from && filters.date_to) {
+    historyFrom = `${filters.date_from} 00:00:00`;
+    historyTo = `${filters.date_to} 23:59:59`;
+  }
+
+  const [today, thisMonth, lastMonth, rangeSummary, salesRows] = await Promise.all([
+    bucketSummary(todayStart, todayEnd),
+    bucketSummary(thisMonthStart, todayEnd),
+    bucketSummary(lastMonthStart, lastMonthEnd),
+    bucketSummary(historyFrom, historyTo),
+    pool.query(
+      `SELECT
+         s.id,
+         s.sale_code,
+         s.total_amount,
+         s.created_at,
+         si.quantity,
+         si.unit_price,
+         si.subtotal,
+         si.is_discounted,
+         p.name AS product_name,
+         p.sku  AS product_sku
+       FROM sales s
+       JOIN sale_items si ON si.sale_id = s.id
+       JOIN products p ON p.id = si.product_id
+       WHERE s.sold_by = $1
+         AND s.created_at >= $2
+         AND s.created_at <= $3
+       ORDER BY s.created_at DESC, si.id ASC
+       LIMIT 200`,
+      [userId, historyFrom, historyTo]
+    ),
+  ]);
+
+  const salesMap = new Map();
+  for (const row of salesRows.rows) {
+    if (!salesMap.has(row.id)) {
+      salesMap.set(row.id, {
+        sale_id: row.id,
+        sale_code: row.sale_code,
+        created_at: row.created_at,
+        total_amount: row.total_amount,
+        items: [],
+      });
+    }
+    salesMap.get(row.id).items.push({
+      product_name: row.product_name,
+      product_sku: row.product_sku,
+      quantity: row.quantity,
+      unit_price: row.unit_price,
+      subtotal: row.subtotal,
+      is_discounted: row.is_discounted,
+    });
+  }
+
+  return {
+    today,
+    this_month: thisMonth,
+    last_month: lastMonth,
+    range_summary: rangeSummary,
+    date_from: filters.date_from || null,
+    date_to: filters.date_to || null,
+    recent_sales: Array.from(salesMap.values()),
+  };
+}
+
 module.exports = {
   salesSummary, salesByEmployee, salesByProduct,
   stockHistory, stockValuation, returnsSummary, salesTrend,
-  dailyStaffActivity,
+  dailyStaffActivity, myReport,
 };
 

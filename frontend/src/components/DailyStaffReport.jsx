@@ -154,6 +154,11 @@ export default function DailyStaffReport({ token }) {
                                 <span className="daily-staff-line-name">
                                   {item.product_name}
                                   <span className="daily-staff-line-sku">({item.product_sku})</span>
+                                  {item.is_discounted && (
+                                    <span className="discount-sale-badge" title="Sold below catalog price">
+                                      ↓ Discounted
+                                    </span>
+                                  )}
                                 </span>
                                 <span className="daily-staff-line-qty">x{item.quantity}</span>
                                 <span className="daily-staff-line-amount">{formatBirr(item.subtotal)}</span>

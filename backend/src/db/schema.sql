@@ -112,7 +112,8 @@ CREATE TABLE IF NOT EXISTS sale_items (
   product_id INT            NOT NULL REFERENCES products(id) ON DELETE RESTRICT,
   quantity   INT            NOT NULL,
   unit_price DECIMAL(10, 2) NOT NULL,
-  subtotal   DECIMAL(10, 2) NOT NULL
+  subtotal   DECIMAL(10, 2) NOT NULL,
+  is_discounted BOOLEAN     NOT NULL DEFAULT FALSE
 );
 
 -- ── TABLE 7: returns ─────────────────────────────────────────
