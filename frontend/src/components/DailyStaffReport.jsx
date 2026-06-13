@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { ChevronDown, ChevronRight, Users, RefreshCw } from 'lucide-react';
 import { formatBirr } from '../utils/formatBirr';
+import DatePickerFields from './DatePickerFields';
 
 function formatTime(iso) {
   if (!iso) return '';
@@ -69,12 +70,11 @@ export default function DailyStaffReport({ token }) {
         </div>
         <div className="daily-staff-controls">
           <div className="daily-staff-date-field">
-            <label className="form-label" style={{ margin: 0 }}>Select Date</label>
-            <input
-              type="date"
+            <DatePickerFields
+              label="Select Date"
+              idPrefix="daily-staff-date"
               value={dailyDate}
-              onChange={(e) => setDailyDate(e.target.value)}
-              style={{ background: 'var(--surface-color)' }}
+              onChange={setDailyDate}
             />
           </div>
           <button

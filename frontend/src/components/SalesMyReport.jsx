@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { TrendingUp, Calendar, RefreshCw, ChevronDown, ChevronRight } from 'lucide-react';
 import { formatBirr } from '../utils/formatBirr';
+import DatePickerFields from './DatePickerFields';
 
 function DiscountBadge() {
   return (
@@ -105,6 +106,18 @@ export default function SalesMyReport({ token, user }) {
     }
   };
 
+  const handleFromDateChange = (val) => {
+    setDateFrom(val);
+    setPreset('custom');
+    if (val > dateTo) setDateTo(val);
+  };
+
+  const handleToDateChange = (val) => {
+    setDateTo(val);
+    setPreset('custom');
+    if (val < dateFrom) setDateFrom(val);
+  };
+
   const quickBuckets = [
     {
       key: 'today',
@@ -133,7 +146,7 @@ export default function SalesMyReport({ token, user }) {
 
   return (
     <div className="animate-fade sales-my-report">
-      <div className="page-header page-header-actions">
+      <div className="page-header page-header-actions stack-on-mobile">
         <div className="page-title-section">
           <h2 className="page-title">My Sales</h2>
           <p className="page-description">
@@ -176,30 +189,20 @@ export default function SalesMyReport({ token, user }) {
         </div>
 
         <div className="reports-filter-field">
-          <label className="form-label" style={{ margin: 0 }}>From Date</label>
-          <input
-            type="date"
+          <DatePickerFields
+            label="From Date"
+            idPrefix="my-sales-from"
             value={dateFrom}
-            max={dateTo}
-            onChange={(e) => {
-              setDateFrom(e.target.value);
-              setPreset('custom');
-            }}
-            style={{ background: 'var(--surface-color)' }}
+            onChange={handleFromDateChange}
           />
         </div>
 
         <div className="reports-filter-field">
-          <label className="form-label" style={{ margin: 0 }}>To Date</label>
-          <input
-            type="date"
+          <DatePickerFields
+            label="To Date"
+            idPrefix="my-sales-to"
             value={dateTo}
-            min={dateFrom}
-            onChange={(e) => {
-              setDateTo(e.target.value);
-              setPreset('custom');
-            }}
-            style={{ background: 'var(--surface-color)' }}
+            onChange={handleToDateChange}
           />
         </div>
       </div>
@@ -248,11 +251,9 @@ export default function SalesMyReport({ token, user }) {
 
           <div className="bg-glass sales-my-history">
             <h3 className="sales-my-history-title">
-              Sales History
+              <span>Sales History</span>
               {rangeLabel && (
-                <span style={{ fontSize: '12px', fontWeight: 500, color: 'var(--text-dim)', marginLeft: '8px' }}>
-                  ({rangeLabel})
-                </span>
+                <span className="sales-my-history-range">({rangeLabel})</span>
               )}
             </h3>
             {!report?.recent_sales?.length ? (

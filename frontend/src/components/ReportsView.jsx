@@ -3,6 +3,7 @@ import { AreaChart, Area, BarChart, Bar, PieChart, Pie, Cell, ResponsiveContaine
 import { TrendingUp, BarChart3, LineChart, PieChart as PieIcon, ShieldAlert, Award, Calendar, Printer, RefreshCw } from 'lucide-react';
 import { formatBirr } from '../utils/formatBirr';
 import DailyStaffReport from './DailyStaffReport';
+import DatePickerFields from './DatePickerFields';
 import { INVENTORY_CHANGED_EVENT } from '../utils/inventoryEvents';
 
 export default function ReportsView({ token, userRole }) {
@@ -109,6 +110,18 @@ export default function ReportsView({ token, userRole }) {
     setDateTo(end.toISOString().split('T')[0]);
   };
 
+  const handleFromDateChange = (val) => {
+    setDateFrom(val);
+    setPreset('custom');
+    if (val > dateTo) setDateTo(val);
+  };
+
+  const handleToDateChange = (val) => {
+    setDateTo(val);
+    setPreset('custom');
+    if (val < dateFrom) setDateFrom(val);
+  };
+
   const handlePrint = () => {
     window.print();
   };
@@ -188,28 +201,20 @@ export default function ReportsView({ token, userRole }) {
         </div>
 
         <div className="reports-filter-field">
-          <label className="form-label" style={{ margin: 0 }}>Start Date</label>
-          <input 
-            type="date" 
-            value={dateFrom} 
-            onChange={(e) => {
-              setDateFrom(e.target.value);
-              setPreset('custom');
-            }}
-            style={{ background: 'var(--surface-color)' }}
+          <DatePickerFields
+            label="Start Date"
+            idPrefix="reports-from"
+            value={dateFrom}
+            onChange={handleFromDateChange}
           />
         </div>
 
         <div className="reports-filter-field">
-          <label className="form-label" style={{ margin: 0 }}>End Date</label>
-          <input 
-            type="date" 
-            value={dateTo} 
-            onChange={(e) => {
-              setDateTo(e.target.value);
-              setPreset('custom');
-            }}
-            style={{ background: 'var(--surface-color)' }}
+          <DatePickerFields
+            label="End Date"
+            idPrefix="reports-to"
+            value={dateTo}
+            onChange={handleToDateChange}
           />
         </div>
       </div>
