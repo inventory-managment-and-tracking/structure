@@ -33,7 +33,7 @@ export default function ProductList({ token, userRole, addToCart }) {
     name: '',
     unit_price: '',
     cost_price: '',
-    category_id: '',
+    category_name: '',
     supplier_name: '', // free-text; matched to supplier_id on submit
     size: '',
     color: '',
@@ -72,14 +72,73 @@ export default function ProductList({ token, userRole, addToCart }) {
   ];
 
   // Returns 'shoes' | 'none' | 'clothing' based on selected category
-  const getSizeType = (categoryId) => {
-    if (!categoryId) return 'clothing';
-    const cat = categories.find(c => String(c.id) === String(categoryId));
-    if (!cat) return 'clothing';
-    const n = cat.name.toLowerCase();
+  const getSizeType = (categoryRef) => {
+    if (!categoryRef) return 'clothing';
+    const cat = categories.find(
+      (c) => String(c.id) === String(categoryRef)
+        || c.name.toLowerCase() === String(categoryRef).trim().toLowerCase()
+    );
+    const name = cat ? cat.name : String(categoryRef);
+    const n = name.toLowerCase();
     if (n.includes('shoe') || n.includes('boot')) return 'shoes';
     if (n.includes('neck tie') || n.includes('necktie') || n.includes('tie')) return 'none';
     return 'clothing';
+  };
+
+  const getCategoryHistory = () => {
+    try { return JSON.parse(localStorage.getItem('category_history') || '[]'); }
+    catch { return []; }
+  };
+
+  const saveCategoryToHistory = (name) => {
+    if (!name?.trim()) return;
+    const hist = getCategoryHistory();
+    const updated = [name.trim(), ...hist.filter((h) => h.toLowerCase() !== name.trim().toLowerCase())].slice(0, 20);
+    localStorage.setItem('category_history', JSON.stringify(updated));
+  };
+
+  const getCategorySuggestions = () => {
+    const names = new Set();
+    categories.forEach((c) => names.add(c.name));
+    getCategoryHistory().forEach((h) => names.add(h));
+    return Array.from(names).sort((a, b) => a.localeCompare(b));
+  };
+
+  const resolveCategoryId = async (categoryName, headers) => {
+    const trimmed = categoryName?.trim();
+    if (!trimmed) return null;
+
+    const existing = categories.find((c) => c.name.toLowerCase() === trimmed.toLowerCase());
+    if (existing) {
+      saveCategoryToHistory(trimmed);
+      return existing.id;
+    }
+
+    const res = await fetch('/api/categories', {
+      method: 'POST',
+      headers,
+      body: JSON.stringify({ name: trimmed }),
+    });
+    const data = await res.json();
+    if (!data.success) {
+      throw new Error(data.message || 'Failed to create category');
+    }
+
+    saveCategoryToHistory(trimmed);
+    setCategories((prev) => {
+      if (prev.some((c) => c.id === data.data.id)) return prev;
+      return [...prev, data.data];
+    });
+    return data.data.id;
+  };
+
+  const handleCategoryNameChange = (formKey, value, setter) => {
+    const sizeType = getSizeType(value);
+    setter((prev) => ({
+      ...prev,
+      category_name: value,
+      size: sizeType === 'none' ? 'One Size' : (formKey === 'add' && sizeType !== getSizeType(prev.category_name) ? '' : prev.size),
+    }));
   };
 
   // Supplier history backed by localStorage for autocomplete hints
@@ -198,7 +257,8 @@ export default function ProductList({ token, userRole, addToCart }) {
       const body = { name: newProduct.name.trim() };
       body.unit_price = parseFloat(newProduct.unit_price);
       if (newProduct.cost_price) body.cost_price = parseFloat(newProduct.cost_price);
-      if (newProduct.category_id) body.category_id = parseInt(newProduct.category_id, 10);
+      const categoryId = await resolveCategoryId(newProduct.category_name, headers);
+      if (categoryId) body.category_id = categoryId;
       if (newProduct.supplier_name?.trim()) {
         const name = newProduct.supplier_name.trim();
         const matched = suppliers.find(s => s.name.toLowerCase() === name.toLowerCase());
@@ -235,7 +295,7 @@ export default function ProductList({ token, userRole, addToCart }) {
       setShowAddModal(false);
       setAddError('');
       setNewProduct({
-        name: '', unit_price: '', cost_price: '', category_id: '',
+        name: '', unit_price: '', cost_price: '', category_name: '',
         supplier_name: '', size: '', color: '', quantity: '',
         low_stock_threshold: '', description: '', sku: ''
       });
@@ -284,7 +344,7 @@ export default function ProductList({ token, userRole, addToCart }) {
       name: product.name,
       unit_price: String(product.unit_price),
       cost_price: product.cost_price != null ? String(product.cost_price) : '',
-      category_id: product.category_id ? String(product.category_id) : '',
+      category_name: product.category_name || categories.find((c) => c.id === product.category_id)?.name || '',
       supplier_name: product.supplier_name
         || getProductSupplierHint(product.id)
         || (!product.supplier_id ? getSupplierHistory()[0] : '')
@@ -300,11 +360,11 @@ export default function ProductList({ token, userRole, addToCart }) {
     setShowEditModal(true);
   };
 
-  const buildProductBody = (form, { includeQuantity = false } = {}) => {
+  const buildProductBody = (form, { includeQuantity = false, categoryId = null } = {}) => {
     const body = { name: form.name.trim() };
     body.unit_price = parseFloat(form.unit_price);
     if (form.cost_price) body.cost_price = parseFloat(form.cost_price);
-    if (form.category_id) body.category_id = parseInt(form.category_id, 10);
+    if (categoryId) body.category_id = categoryId;
     if (form.supplier_name?.trim()) {
       const name = form.supplier_name.trim();
       const matched = suppliers.find(s => s.name.toLowerCase() === name.toLowerCase());
@@ -338,13 +398,15 @@ export default function ProductList({ token, userRole, addToCart }) {
 
     setIsEditing(true);
     try {
-      const body = buildProductBody(editProduct);
+      const headers = {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${token}`,
+      };
+      const categoryId = await resolveCategoryId(editProduct.category_name, headers);
+      const body = buildProductBody(editProduct, { categoryId });
       const res = await fetch(`/api/products/${editProduct.id}`, {
         method: 'PATCH',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`,
-        },
+        headers,
         body: JSON.stringify(body),
       });
 
@@ -749,22 +811,22 @@ export default function ProductList({ token, userRole, addToCart }) {
                 </div>
               </div>
 
-              {/* Category — full width, drives size logic */}
+              {/* Category — free-text with history hints */}
               <div className="form-group">
                 <label className="form-label">Category</label>
-                <select
-                  value={newProduct.category_id}
-                  onChange={(e) => {
-                    const newCatId = e.target.value;
-                    const sizeType = getSizeType(newCatId);
-                    setNewProduct({ ...newProduct, category_id: newCatId, size: sizeType === 'none' ? 'One Size' : '' });
-                  }}
-                >
-                  <option value="">Select Men's Category</option>
-                  {[...new Map(categories.map(c => [c.id, c])).values()].map(c => (
-                    <option key={c.id} value={c.id}>{c.name}</option>
+                <input
+                  type="text"
+                  list="category-hints-list"
+                  placeholder="Type category — previous entries appear as hints"
+                  value={newProduct.category_name}
+                  onChange={(e) => handleCategoryNameChange('add', e.target.value, setNewProduct)}
+                  autoComplete="off"
+                />
+                <datalist id="category-hints-list">
+                  {getCategorySuggestions().map((name) => (
+                    <option key={name} value={name} />
                   ))}
-                </select>
+                </datalist>
               </div>
 
               {/* Supplier — optional free-text with history hints */}
@@ -792,7 +854,7 @@ export default function ProductList({ token, userRole, addToCart }) {
               {/* Size (category-aware) + Color */}
               <div className="form-grid-2">
                 <div className="form-group">
-                  {getSizeType(newProduct.category_id) === 'clothing' && (
+                  {getSizeType(newProduct.category_name) === 'clothing' && (
                     <>
                       <label className="form-label">Size</label>
                       <select value={newProduct.size}
@@ -802,7 +864,7 @@ export default function ProductList({ token, userRole, addToCart }) {
                       </select>
                     </>
                   )}
-                  {getSizeType(newProduct.category_id) === 'shoes' && (
+                  {getSizeType(newProduct.category_name) === 'shoes' && (
                     <>
                       <label className="form-label">Shoe Size (EU)</label>
                       <select value={newProduct.size}
@@ -817,7 +879,7 @@ export default function ProductList({ token, userRole, addToCart }) {
                       </span>
                     </>
                   )}
-                  {getSizeType(newProduct.category_id) === 'none' && (
+                  {getSizeType(newProduct.category_name) === 'none' && (
                     <>
                       <label className="form-label">Size</label>
                       <input type="text" value="One Size Fits All" disabled
@@ -934,23 +996,19 @@ export default function ProductList({ token, userRole, addToCart }) {
 
               <div className="form-group">
                 <label className="form-label">Category</label>
-                <select
-                  value={editProduct.category_id}
-                  onChange={(e) => {
-                    const newCatId = e.target.value;
-                    const sizeType = getSizeType(newCatId);
-                    setEditProduct({
-                      ...editProduct,
-                      category_id: newCatId,
-                      size: sizeType === 'none' ? 'One Size' : editProduct.size,
-                    });
-                  }}
-                >
-                  <option value="">Select Men's Category</option>
-                  {[...new Map(categories.map(c => [c.id, c])).values()].map(c => (
-                    <option key={c.id} value={c.id}>{c.name}</option>
+                <input
+                  type="text"
+                  list="category-hints-edit"
+                  placeholder="Type category — previous entries appear as hints"
+                  value={editProduct.category_name}
+                  onChange={(e) => handleCategoryNameChange('edit', e.target.value, setEditProduct)}
+                  autoComplete="off"
+                />
+                <datalist id="category-hints-edit">
+                  {getCategorySuggestions().map((name) => (
+                    <option key={name} value={name} />
                   ))}
-                </select>
+                </datalist>
               </div>
 
               <div className="form-group">
@@ -969,7 +1027,7 @@ export default function ProductList({ token, userRole, addToCart }) {
 
               <div className="form-grid-2">
                 <div className="form-group">
-                  {getSizeType(editProduct.category_id) === 'clothing' && (
+                  {getSizeType(editProduct.category_name) === 'clothing' && (
                     <>
                       <label className="form-label">Size</label>
                       <select value={editProduct.size}
@@ -979,7 +1037,7 @@ export default function ProductList({ token, userRole, addToCart }) {
                       </select>
                     </>
                   )}
-                  {getSizeType(editProduct.category_id) === 'shoes' && (
+                  {getSizeType(editProduct.category_name) === 'shoes' && (
                     <>
                       <label className="form-label">Shoe Size (EU)</label>
                       <select value={editProduct.size}
@@ -991,7 +1049,7 @@ export default function ProductList({ token, userRole, addToCart }) {
                       </select>
                     </>
                   )}
-                  {getSizeType(editProduct.category_id) === 'none' && (
+                  {getSizeType(editProduct.category_name) === 'none' && (
                     <>
                       <label className="form-label">Size</label>
                       <input type="text" value="One Size Fits All" disabled style={{ opacity: 0.5, cursor: 'not-allowed' }} />
@@ -1159,14 +1217,26 @@ export default function ProductList({ token, userRole, addToCart }) {
                 />
               </div>
               <div className="form-group">
-                <label className="form-label">Adjustment Logs Note *</label>
-                <input
-                  type="text"
-                  required
-                  placeholder="e.g. Replenishment shipment arrived from supplier"
+                <label className="form-label">
+                  Reason / Note
+                  {parseInt(adjustData.quantity_change, 10) < 0 && (
+                    <span style={{ color: 'var(--warning-color)', fontWeight: 600 }}> (recommended for reductions)</span>
+                  )}
+                </label>
+                <textarea
+                  rows={3}
+                  placeholder={
+                    parseInt(adjustData.quantity_change, 10) < 0
+                      ? 'Reason for reduction — e.g. damaged, expired, stolen, display sample'
+                      : 'e.g. Replenishment shipment arrived from supplier'
+                  }
                   value={adjustData.notes}
                   onChange={(e) => setAdjustData({ ...adjustData, notes: e.target.value })}
+                  style={{ resize: 'vertical', minHeight: '72px' }}
                 />
+                <span style={{ fontSize: '11px', color: 'var(--text-dim)', marginTop: '4px', display: 'block' }}>
+                  This note appears in stock movement reports for managers to review.
+                </span>
               </div>
 
               <button type="submit" className="submit-btn">Apply Adjustment</button>

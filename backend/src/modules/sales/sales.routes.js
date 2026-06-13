@@ -17,6 +17,7 @@ router.post(
     body('items.*.product_id').isInt({ gt: 0 }).withMessage('Each item must have a valid product_id'),
     body('items.*.quantity').isInt({ gt: 0 }).withMessage('Each item quantity must be > 0'),
     body('items.*.unit_price').optional().isFloat({ gt: 0 }),
+    body('items.*.subtotal').optional().isFloat({ gt: 0 }),
     body('payment_method')
       .optional()
       .isIn(['cash', 'card', 'mobile_money', 'other'])

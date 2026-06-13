@@ -3,6 +3,7 @@ import { AreaChart, Area, BarChart, Bar, PieChart, Pie, Cell, ResponsiveContaine
 import { TrendingUp, BarChart3, LineChart, PieChart as PieIcon, ShieldAlert, Award, Calendar, Printer, RefreshCw } from 'lucide-react';
 import { formatBirr } from '../utils/formatBirr';
 import DailyStaffReport from './DailyStaffReport';
+import DatePickerFields from './DatePickerFields';
 import { INVENTORY_CHANGED_EVENT } from '../utils/inventoryEvents';
 
 export default function ReportsView({ token, userRole }) {
@@ -11,6 +12,7 @@ export default function ReportsView({ token, userRole }) {
   const [topProducts, setTopProducts] = useState([]);
   const [returnsSummary, setReturnsSummary] = useState(null);
   const [salesTrend, setSalesTrend] = useState([]);
+  const [stockMovements, setStockMovements] = useState([]);
   const [loading, setLoading] = useState(true);
 
   // Time range presets: '3days', '14days', '30days', 'custom'
@@ -34,12 +36,13 @@ export default function ReportsView({ token, userRole }) {
       if (dateTo) query.append('date_to', dateTo + ' 23:59:59');
       const queryString = query.toString();
 
-      const [summaryRes, valuationRes, topProductsRes, returnsRes, trendRes] = await Promise.all([
+      const [summaryRes, valuationRes, topProductsRes, returnsRes, trendRes, stockHistoryRes] = await Promise.all([
         fetch(`/api/reports/sales/summary?${queryString}`, { headers }),
-        fetch('/api/reports/stock/valuation', { headers }), // current stock valuation snapshot
+        fetch('/api/reports/stock/valuation', { headers }),
         fetch(`/api/reports/sales/by-product?limit=8&${queryString}`, { headers }),
         fetch(`/api/reports/returns/summary?${queryString}`, { headers }),
-        fetch(`/api/reports/sales/trend?${queryString}`, { headers })
+        fetch(`/api/reports/sales/trend?${queryString}`, { headers }),
+        fetch(`/api/reports/stock/history?${queryString}`, { headers }),
       ]);
 
       if (
@@ -47,7 +50,8 @@ export default function ReportsView({ token, userRole }) {
         valuationRes.status === 401 ||
         topProductsRes.status === 401 ||
         returnsRes.status === 401 ||
-        trendRes.status === 401
+        trendRes.status === 401 ||
+        stockHistoryRes.status === 401
       ) {
         window.dispatchEvent(new Event('unauthorized'));
         return;
@@ -58,12 +62,18 @@ export default function ReportsView({ token, userRole }) {
       const topProductsData = await topProductsRes.json();
       const returnsData = await returnsRes.json();
       const trendData = await trendRes.json();
+      const stockHistoryData = await stockHistoryRes.json();
 
       if (summaryData.success) setSalesSummary(summaryData.data);
       if (valuationData.success) setStockValuation(valuationData.data);
       if (topProductsData.success) setTopProducts(topProductsData.data);
       if (returnsData.success) setReturnsSummary(returnsData.data);
       if (trendData.success) setSalesTrend(trendData.data);
+      if (stockHistoryData.success) {
+        setStockMovements(
+          stockHistoryData.data.filter((m) => m.movement_type === 'adjustment' && m.notes)
+        );
+      }
 
     } catch (err) {
       console.error('[REPORTS FETCH ERR]', err);
@@ -98,6 +108,18 @@ export default function ReportsView({ token, userRole }) {
     
     setDateFrom(start.toISOString().split('T')[0]);
     setDateTo(end.toISOString().split('T')[0]);
+  };
+
+  const handleFromDateChange = (val) => {
+    setDateFrom(val);
+    setPreset('custom');
+    if (val > dateTo) setDateTo(val);
+  };
+
+  const handleToDateChange = (val) => {
+    setDateTo(val);
+    setPreset('custom');
+    if (val < dateFrom) setDateFrom(val);
   };
 
   const handlePrint = () => {
@@ -179,28 +201,20 @@ export default function ReportsView({ token, userRole }) {
         </div>
 
         <div className="reports-filter-field">
-          <label className="form-label" style={{ margin: 0 }}>Start Date</label>
-          <input 
-            type="date" 
-            value={dateFrom} 
-            onChange={(e) => {
-              setDateFrom(e.target.value);
-              setPreset('custom');
-            }}
-            style={{ background: 'var(--surface-color)' }}
+          <DatePickerFields
+            label="Start Date"
+            idPrefix="reports-from"
+            value={dateFrom}
+            onChange={handleFromDateChange}
           />
         </div>
 
         <div className="reports-filter-field">
-          <label className="form-label" style={{ margin: 0 }}>End Date</label>
-          <input 
-            type="date" 
-            value={dateTo} 
-            onChange={(e) => {
-              setDateTo(e.target.value);
-              setPreset('custom');
-            }}
-            style={{ background: 'var(--surface-color)' }}
+          <DatePickerFields
+            label="End Date"
+            idPrefix="reports-to"
+            value={dateTo}
+            onChange={handleToDateChange}
           />
         </div>
       </div>
@@ -447,6 +461,36 @@ export default function ReportsView({ token, userRole }) {
       </div>
 
       <DailyStaffReport token={token} />
+
+      <div className="bg-glass stock-notes-report no-print" style={{ marginTop: '24px', padding: '20px', borderRadius: '14px' }}>
+        <h3 style={{ fontSize: '15px', marginBottom: '6px' }}>Stock Adjustment Notes</h3>
+        <p style={{ fontSize: '12px', color: 'var(--text-dim)', marginBottom: '16px' }}>
+          Reasons recorded when staff reduced or adjusted inventory during the selected date range.
+        </p>
+        {stockMovements.length === 0 ? (
+          <p style={{ fontSize: '13px', color: 'var(--text-dim)' }}>No adjustment notes in this period.</p>
+        ) : (
+          <div className="stock-notes-list">
+            {stockMovements.slice(0, 20).map((movement) => (
+              <div key={movement.id} className="stock-notes-item">
+                <div className="stock-notes-meta">
+                  <strong>{movement.product_name}</strong>
+                  <span className="mono" style={{ fontSize: '11px', color: 'var(--text-dim)' }}>{movement.product_sku}</span>
+                </div>
+                <div className="stock-notes-detail">
+                  <span style={{ color: movement.quantity_change < 0 ? 'var(--danger-color)' : 'var(--success-color)', fontWeight: 600 }}>
+                    {movement.quantity_change > 0 ? '+' : ''}{movement.quantity_change} units
+                  </span>
+                  <span style={{ fontSize: '12px', color: 'var(--text-muted)' }}>{movement.notes}</span>
+                  <span style={{ fontSize: '11px', color: 'var(--text-dim)' }}>
+                    {movement.performed_by_name || 'Staff'} · {new Date(movement.created_at).toLocaleString()}
+                  </span>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
     </div>
   );
 }

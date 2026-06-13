@@ -1,10 +1,22 @@
 import React, { useState } from 'react';
-import { ShoppingBag, Trash2, CheckCircle, RotateCcw } from 'lucide-react';
+import { ShoppingBag, Trash2, CheckCircle, RotateCcw, Pencil, Check, X } from 'lucide-react';
 import { formatBirr } from '../utils/formatBirr';
 import { notifyInventoryChanged } from '../utils/inventoryEvents';
 
-export default function POSCart({ cart, updateQty, removeFromCart, onCheckoutSuccess, token }) {
+export default function POSCart({ cart, updateQty, removeFromCart, overrideLineTotal, onCheckoutSuccess, token }) {
   const [activeTab, setActiveTab] = useState('sell');
+  const [editingPriceId, setEditingPriceId] = useState(null);
+  const [priceDraft, setPriceDraft] = useState('');
+
+  const getLineTotal = (item) => (
+    item.custom_subtotal != null
+      ? item.custom_subtotal
+      : item.unit_price * item.quantity
+  );
+
+  const getCatalogLineTotal = (item) => (
+    (item.original_unit_price ?? item.unit_price) * item.quantity
+  );
 
   // Sell state
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -23,7 +35,26 @@ export default function POSCart({ cart, updateQty, removeFromCart, onCheckoutSuc
   const [refundError, setRefundError] = useState('');
   const [completedRefund, setCompletedRefund] = useState(null);
 
-  const total = cart.reduce((sum, item) => sum + (item.quantity * item.unit_price), 0);
+  const total = cart.reduce((sum, item) => sum + getLineTotal(item), 0);
+
+  const startPriceEdit = (item) => {
+    setEditingPriceId(item.id);
+    setPriceDraft(String(getLineTotal(item)));
+  };
+
+  const cancelPriceEdit = () => {
+    setEditingPriceId(null);
+    setPriceDraft('');
+  };
+
+  const savePriceEdit = (id) => {
+    const parsed = parseFloat(priceDraft);
+    if (!Number.isFinite(parsed) || parsed <= 0) return;
+    overrideLineTotal(id, parsed);
+    cancelPriceEdit();
+  };
+
+  const isDiscounted = (item) => getLineTotal(item) < getCatalogLineTotal(item) - 0.005;
 
   const handleCheckout = async () => {
     if (!cart.length) return;
@@ -34,7 +65,12 @@ export default function POSCart({ cart, updateQty, removeFromCart, onCheckoutSuc
         method: 'POST',
         headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
         body: JSON.stringify({
-          items: cart.map(item => ({ product_id: item.id, quantity: item.quantity, unit_price: item.unit_price })),
+          items: cart.map((item) => ({
+            product_id: item.id,
+            quantity: item.quantity,
+            unit_price: item.unit_price,
+            ...(item.custom_subtotal != null ? { subtotal: item.custom_subtotal } : {}),
+          })),
           payment_method: 'cash'
         })
       });
@@ -55,7 +91,6 @@ export default function POSCart({ cart, updateQty, removeFromCart, onCheckoutSuc
     setIsRefunding(true);
     setRefundError('');
     try {
-      // Process a return for each scanned item
       const results = [];
       for (const item of cart) {
         const res = await fetch('/api/returns', {
@@ -67,7 +102,7 @@ export default function POSCart({ cart, updateQty, removeFromCart, onCheckoutSuc
             reason: refundForm.reason,
             condition: refundForm.condition,
             refund_type: refundForm.refund_type,
-            refund_amount: refundForm.refund_amount ? parseFloat(refundForm.refund_amount) : item.unit_price * item.quantity,
+            refund_amount: refundForm.refund_amount ? parseFloat(refundForm.refund_amount) : getLineTotal(item),
             notes: refundForm.notes || undefined
           })
         });
@@ -89,7 +124,6 @@ export default function POSCart({ cart, updateQty, removeFromCart, onCheckoutSuc
     <>
       <div className="pos-cart-panel bg-glass animate-fade">
 
-        {/* Tab switcher */}
         <div style={{ display: 'flex', gap: '4px', background: 'var(--surface-light)', borderRadius: '10px', padding: '4px', marginBottom: '16px' }}>
           {['sell', 'refund'].map(tab => (
             <button
@@ -114,7 +148,6 @@ export default function POSCart({ cart, updateQty, removeFromCart, onCheckoutSuc
           ))}
         </div>
 
-        {/* Cart header */}
         <div className="cart-header">
           <div className="cart-title">
             <ShoppingBag size={20} style={{ color: 'var(--primary-color)' }} />
@@ -123,7 +156,6 @@ export default function POSCart({ cart, updateQty, removeFromCart, onCheckoutSuc
           <span className="cart-count-badge">{cart.reduce((s, i) => s + i.quantity, 0)} items</span>
         </div>
 
-        {/* Item list — same for both tabs */}
         <div className="cart-items-scroll">
           {cart.length === 0 ? (
             <div style={{ textAlign: 'center', color: 'var(--text-dim)', padding: '40px 10px', display: 'flex', flexDirection: 'column', gap: '10px', alignItems: 'center' }}>
@@ -137,13 +169,62 @@ export default function POSCart({ cart, updateQty, removeFromCart, onCheckoutSuc
                 <div className="cart-item-meta">
                   <div className="cart-item-name">{item.name}</div>
                   <div className="cart-item-sku mono">{item.sku}</div>
+                  {isDiscounted(item) && (
+                    <span className="discount-sale-badge cart-discount-badge">↓ Below catalog price</span>
+                  )}
+                  {item.quantity > 1 && editingPriceId !== item.id && (
+                    <span className="cart-line-unit-hint mono">
+                      {formatBirr(item.unit_price)} each × {item.quantity}
+                    </span>
+                  )}
                 </div>
                 <div className="cart-item-controls">
                   <button onClick={() => updateQty(item.id, -1)} className="qty-btn">-</button>
                   <span style={{ fontSize: '13px', fontWeight: '600', minWidth: '16px', textAlign: 'center' }}>{item.quantity}</span>
                   <button onClick={() => updateQty(item.id, 1)} className="qty-btn">+</button>
                   <div className="cart-item-price-calc">
-                    <div className="cart-item-price mono">{formatBirr(item.unit_price * item.quantity)}</div>
+                    {editingPriceId === item.id ? (
+                      <div className="cart-price-edit cart-price-edit--line">
+                        <div className="cart-price-edit-label">
+                          {item.quantity > 1 ? `Total for ${item.quantity} items` : 'Sale price'}
+                        </div>
+                        <div className="cart-price-edit-row">
+                          <input
+                            type="number"
+                            step="0.01"
+                            min="0.01"
+                            value={priceDraft}
+                            onChange={(e) => setPriceDraft(e.target.value)}
+                            className="cart-price-input cart-price-input--line"
+                            autoFocus
+                            onKeyDown={(e) => {
+                              if (e.key === 'Enter') savePriceEdit(item.id);
+                              if (e.key === 'Escape') cancelPriceEdit();
+                            }}
+                          />
+                          <button type="button" className="cart-price-btn" onClick={() => savePriceEdit(item.id)} title="Save total">
+                            <Check size={12} />
+                          </button>
+                          <button type="button" className="cart-price-btn" onClick={cancelPriceEdit} title="Cancel">
+                            <X size={12} />
+                          </button>
+                        </div>
+                      </div>
+                    ) : (
+                      <div className="cart-price-display">
+                        <div className="cart-item-price mono">{formatBirr(getLineTotal(item))}</div>
+                        {activeTab === 'sell' && (
+                          <button
+                            type="button"
+                            className="cart-price-edit-btn"
+                            onClick={() => startPriceEdit(item)}
+                            title={item.quantity > 1 ? 'Edit total price for all items' : 'Edit sale price'}
+                          >
+                            <Pencil size={11} />
+                          </button>
+                        )}
+                      </div>
+                    )}
                   </div>
                   <button onClick={() => removeFromCart(item.id)} style={{ color: 'var(--text-dim)', padding: '4px' }}>
                     <Trash2 size={14} />
@@ -161,7 +242,6 @@ export default function POSCart({ cart, updateQty, removeFromCart, onCheckoutSuc
           </div>
         </div>
 
-        {/* SELL tab bottom */}
         {activeTab === 'sell' && (
           <>
             {errorMsg && (
@@ -175,7 +255,6 @@ export default function POSCart({ cart, updateQty, removeFromCart, onCheckoutSuc
           </>
         )}
 
-        {/* REFUND tab bottom */}
         {activeTab === 'refund' && (
           <>
             <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', marginBottom: '12px' }}>
@@ -258,7 +337,6 @@ export default function POSCart({ cart, updateQty, removeFromCart, onCheckoutSuc
         )}
       </div>
 
-      {/* Sale confirmed */}
       {completedSale && (
         <div className="receipt-overlay">
           <div className="receipt-card animate-fade" style={{ maxWidth: '340px', textAlign: 'center' }}>
@@ -287,7 +365,6 @@ export default function POSCart({ cart, updateQty, removeFromCart, onCheckoutSuc
         </div>
       )}
 
-      {/* Refund confirmed */}
       {completedRefund && (
         <div className="receipt-overlay">
           <div className="receipt-card animate-fade" style={{ maxWidth: '340px', textAlign: 'center' }}>

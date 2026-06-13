@@ -7,12 +7,15 @@ import ReportsView from './components/ReportsView';
 import AlertsManager from './components/AlertsManager';
 import UsersManager from './components/UsersManager';
 import Dashboard from './components/Dashboard';
+import SalesMyReport from './components/SalesMyReport';
+import TranslateToggle from './components/TranslateToggle';
 import { INVENTORY_CHANGED_EVENT } from './utils/inventoryEvents';
+import { isAmharicEnabled, reapplyAmharicTranslation } from './utils/googleTranslate';
 
 // Lucide Icons
 import { 
   LayoutDashboard, ShoppingCart, Shirt, BarChart3, AlertCircle, LogOut, 
-  User, AlertTriangle, Search, Users, Menu, X
+  User, AlertTriangle, Search, Users, Menu, X, TrendingUp
 } from 'lucide-react';
 
 const ROLE_LABELS = {
@@ -126,6 +129,11 @@ export default function App() {
   }, [handleLogout]);
 
   useEffect(() => {
+    if (!isAmharicEnabled()) return;
+    reapplyAmharicTranslation();
+  }, [activeTab, token, refreshAlerts]);
+
+  useEffect(() => {
     if (!mobileMenuOpen) return;
     const onKeyDown = (e) => {
       if (e.key === 'Escape') setMobileMenuOpen(false);
@@ -185,10 +193,30 @@ export default function App() {
     setCart(prevCart => {
       const existing = prevCart.find(i => i.id === product.id);
       if (existing) {
-        return prevCart.map(i => i.id === product.id ? { ...i, quantity: i.quantity + 1 } : i);
+        return prevCart.map(i => i.id === product.id
+          ? { ...i, quantity: i.quantity + 1, custom_subtotal: undefined }
+          : i);
       }
-      return [...prevCart, { ...product, quantity: 1 }];
+      return [...prevCart, {
+        ...product,
+        quantity: 1,
+        original_unit_price: product.unit_price,
+      }];
     });
+  };
+
+  const overrideLineTotal = (id, lineTotal) => {
+    setCart((prevCart) => prevCart.map((item) => {
+      if (item.id !== id) return item;
+      const total = parseFloat(lineTotal);
+      if (!Number.isFinite(total) || total <= 0) return item;
+      const roundedTotal = parseFloat(total.toFixed(2));
+      return {
+        ...item,
+        unit_price: parseFloat((roundedTotal / item.quantity).toFixed(2)),
+        custom_subtotal: roundedTotal,
+      };
+    }));
   };
 
   const updateQty = (id, change) => {
@@ -196,7 +224,9 @@ export default function App() {
       return prevCart.map(i => {
         if (i.id === id) {
           const newQty = i.quantity + change;
-          return newQty > 0 ? { ...i, quantity: newQty } : i;
+          return newQty > 0
+            ? { ...i, quantity: newQty, custom_subtotal: undefined }
+            : i;
         }
         return i;
       });
@@ -252,6 +282,9 @@ export default function App() {
   if (!token) {
     return (
       <div className="auth-wrapper">
+        <div className="auth-translate-bar">
+          <TranslateToggle />
+        </div>
         <div className="auth-card bg-glass animate-fade">
           <div className="auth-header">
             <div className="brand-logo">👕</div>
@@ -306,15 +339,18 @@ export default function App() {
           <div className="brand-logo">👕</div>
           <span className="brand-name">ClothTrack</span>
         </div>
-        <button
-          type="button"
-          className="mobile-menu-toggle"
-          onClick={() => setMobileMenuOpen((open) => !open)}
-          aria-label={mobileMenuOpen ? 'Close menu' : 'Open menu'}
-          aria-expanded={mobileMenuOpen}
-        >
-          {mobileMenuOpen ? <X size={22} /> : <Menu size={22} />}
-        </button>
+        <div className="mobile-header-actions">
+          <TranslateToggle compact />
+          <button
+            type="button"
+            className="mobile-menu-toggle"
+            onClick={() => setMobileMenuOpen((open) => !open)}
+            aria-label={mobileMenuOpen ? 'Close menu' : 'Open menu'}
+            aria-expanded={mobileMenuOpen}
+          >
+            {mobileMenuOpen ? <X size={22} /> : <Menu size={22} />}
+          </button>
+        </div>
       </header>
 
       {mobileMenuOpen && (
@@ -331,6 +367,8 @@ export default function App() {
           <div className="brand-logo">👕</div>
           <span className="brand-name">ClothTrack</span>
         </div>
+
+        <TranslateToggle className="sidebar-translate-toggle" />
 
         <nav className="nav-links">
           {!isSales && (
@@ -355,6 +393,15 @@ export default function App() {
           >
             <Shirt size={18} /> Inventory Catalog
           </button>
+
+          {isSales && (
+            <button
+              onClick={() => handleNavClick('my-report')}
+              className={`nav-item ${activeTab === 'my-report' ? 'active' : ''}`}
+            >
+              <TrendingUp size={18} /> My Sales
+            </button>
+          )}
 
           {!isSales && (
             <button
@@ -500,6 +547,7 @@ export default function App() {
                 cart={cart}
                 updateQty={updateQty}
                 removeFromCart={removeFromCart}
+                overrideLineTotal={overrideLineTotal}
                 token={token}
                 onCheckoutSuccess={() => setCart([])}
               />
@@ -514,6 +562,11 @@ export default function App() {
             userRole={role}
             addToCart={addToCart}
           />
+        )}
+
+        {/* Tab View 3b: Sales staff personal report */}
+        {activeTab === 'my-report' && isSales && (
+          <SalesMyReport token={token} user={user} />
         )}
 
         {/* Tab View 4: Reports charts and valuation dashboard */}

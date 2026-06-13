@@ -59,8 +59,20 @@ async function createSale({ items, payment_method, notes }, userId) {
 
       const product  = productRows[0];
       const qty      = parseInt(item.quantity, 10);
-      const price    = parseFloat(item.unit_price ?? product.unit_price);
-      const subtotal = parseFloat((qty * price).toFixed(2));
+      const catalogPrice = parseFloat(product.unit_price);
+      const catalogLineTotal = parseFloat((catalogPrice * qty).toFixed(2));
+
+      let price;
+      let subtotal;
+      if (item.subtotal != null && item.subtotal !== '') {
+        subtotal = parseFloat(parseFloat(item.subtotal).toFixed(2));
+        price = parseFloat((subtotal / qty).toFixed(2));
+      } else {
+        price = parseFloat(item.unit_price ?? product.unit_price);
+        subtotal = parseFloat((qty * price).toFixed(2));
+      }
+
+      const isDiscounted = subtotal < catalogLineTotal;
 
       if (qty <= 0) {
         throw Object.assign(new Error('Item quantity must be > 0'), { status: 400 });
@@ -77,9 +89,9 @@ async function createSale({ items, payment_method, notes }, userId) {
       const qty_after  = qty_before - qty;
 
       await client.query(
-        `INSERT INTO sale_items (sale_id, product_id, quantity, unit_price, subtotal)
-         VALUES ($1, $2, $3, $4, $5)`,
-        [sale_id, item.product_id, qty, price, subtotal]
+        `INSERT INTO sale_items (sale_id, product_id, quantity, unit_price, subtotal, is_discounted)
+         VALUES ($1, $2, $3, $4, $5, $6)`,
+        [sale_id, item.product_id, qty, price, subtotal, isDiscounted]
       );
 
       await client.query(

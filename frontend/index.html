@@ -8,9 +8,61 @@
     <!-- Google Fonts -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Outfit:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Noto+Sans+Ethiopic:wght@400;500;600;700&family=Outfit:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+    <script>
+      (function () {
+        var KEY = 'clothtrack_translate_amharic';
+        var enabled = localStorage.getItem(KEY) === 'true';
+        var expires = 'expires=Thu, 01 Jan 1970 00:00:00 UTC';
+
+        document.cookie = 'googtrans=; ' + expires + '; path=/';
+
+        if (enabled) {
+          document.cookie = 'googtrans=/en/am; path=/';
+          document.documentElement.classList.add('lang-am');
+          document.documentElement.lang = 'am';
+        } else {
+          document.documentElement.lang = 'en';
+        }
+      })();
+
+      function googleTranslateElementInit() {
+        new google.translate.TranslateElement(
+          {
+            pageLanguage: 'en',
+            includedLanguages: 'en,am',
+            autoDisplay: false,
+            layout: google.translate.TranslateElement.InlineLayout.SIMPLE,
+          },
+          'google_translate_element'
+        );
+
+        var enabled = localStorage.getItem('clothtrack_translate_amharic') === 'true';
+        if (!enabled) return;
+
+        var tries = 0;
+        var applyAmharic = function () {
+          var select = document.querySelector('.goog-te-combo');
+          if (select) {
+            select.value = 'am';
+            select.dispatchEvent(new Event('change'));
+            if (window.__clothtrackOnGoogleTranslateReady) {
+              window.__clothtrackOnGoogleTranslateReady();
+            }
+            return;
+          }
+          if (tries < 25) {
+            tries += 1;
+            setTimeout(applyAmharic, 200);
+          }
+        };
+        setTimeout(applyAmharic, 100);
+      }
+    </script>
+    <script src="https://translate.google.com/translate_a/element.js?cb=googleTranslateElementInit"></script>
   </head>
   <body>
+    <div id="google_translate_element" aria-hidden="true"></div>
     <div id="root"></div>
     <script type="module" src="/src/main.jsx"></script>
   </body>
