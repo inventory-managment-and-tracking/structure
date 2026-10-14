@@ -198,39 +198,139 @@ async function writePrinterBytes(characteristic, bytes) {
   }
 }
 
+const LAST_PRINTER_KEY = 'last_bt_printer_id';
+const LAST_PRINTER_NAME_KEY = 'last_bt_printer_name';
+
+const PRINTER_OPTIONAL_SERVICES = [
+  'e7810a71-73ae-499d-8c15-faa9aef0c3f2', // Bluepos / Standard Chinese BLE printer service
+  '000018f0-0000-1000-8000-00805f9b34fb', // Standard thermal printer service
+  '0000ffe0-0000-1000-8000-00805f9b34fb', // Common serial BLE
+  '0000ff00-0000-1000-8000-00805f9b34fb', // Alternative serial BLE
+  '49535343-fe7d-4ae5-8fa9-9fafd205e455', // ISSC transparent service
+];
+
+function connectWithTimeout(gatt, ms = 4000) {
+  return Promise.race([
+    gatt.connect(),
+    new Promise((_, reject) =>
+      setTimeout(() => reject(new Error('Bluetooth connection timed out')), ms)
+    ),
+  ]);
+}
+
+/**
+ * Returns saved printer name if any exists in localStorage.
+ */
+export function getSavedBluetoothPrinterName() {
+  try {
+    return localStorage.getItem(LAST_PRINTER_NAME_KEY) || '';
+  } catch {
+    return '';
+  }
+}
+
+// In-memory cache for the current browser session
+let inMemoryPrinterDevice = null;
+
+/**
+ * Clears saved printer ID and name from localStorage and in-memory cache.
+ */
+export function clearSavedBluetoothPrinter() {
+  inMemoryPrinterDevice = null;
+  try {
+    localStorage.removeItem(LAST_PRINTER_KEY);
+    localStorage.removeItem(LAST_PRINTER_NAME_KEY);
+  } catch {
+    // ignore
+  }
+}
+
+async function getOrSelectPrinter(forceSelect = false) {
+  // 1. Try to reuse the in-memory cached device from the current session
+  if (!forceSelect && inMemoryPrinterDevice && inMemoryPrinterDevice.gatt) {
+    try {
+      const server = inMemoryPrinterDevice.gatt.connected
+        ? inMemoryPrinterDevice.gatt
+        : await connectWithTimeout(inMemoryPrinterDevice.gatt, 4000);
+      return { device: inMemoryPrinterDevice, server };
+    } catch (inMemErr) {
+      console.warn('In-memory printer reconnect failed, attempting other methods:', inMemErr);
+      inMemoryPrinterDevice = null;
+    }
+  }
+
+  // 2. Try to reconnect to an already-permitted printer from getDevices()
+  if (!forceSelect && typeof navigator !== 'undefined' && navigator.bluetooth?.getDevices) {
+    try {
+      const devices = await navigator.bluetooth.getDevices();
+      if (devices && devices.length > 0) {
+        const savedId = localStorage.getItem(LAST_PRINTER_KEY);
+        // Match by saved ID, or fallback to the first permitted device
+        const candidate = devices.find((d) => d.id === savedId) || devices[0];
+
+        if (candidate && candidate.gatt) {
+          try {
+            const server = candidate.gatt.connected
+              ? candidate.gatt
+              : await connectWithTimeout(candidate.gatt, 4000);
+            inMemoryPrinterDevice = candidate;
+            return { device: candidate, server };
+          } catch (autoErr) {
+            console.warn('Auto-reconnect via getDevices failed, falling back to chooser:', autoErr);
+          }
+        }
+      }
+    } catch (e) {
+      console.warn('navigator.bluetooth.getDevices error:', e);
+    }
+  }
+
+  // 3. Prompt user to select device
+  const device = await navigator.bluetooth.requestDevice({
+    acceptAllDevices: true,
+    optionalServices: PRINTER_OPTIONAL_SERVICES,
+  });
+
+  if (!device || !device.gatt) {
+    throw new Error('Bluetooth GATT server unavailable on selected device.');
+  }
+
+  const server = await device.gatt.connect();
+  inMemoryPrinterDevice = device;
+
+  if (device.id) {
+    try {
+      localStorage.setItem(LAST_PRINTER_KEY, device.id);
+      if (device.name) {
+        localStorage.setItem(LAST_PRINTER_NAME_KEY, device.name);
+      }
+    } catch {
+      // ignore
+    }
+  }
+
+  return { device, server };
+}
+
 /**
  * Connects to a Bluetooth Thermal Printer via Web Bluetooth and prints the QR label.
+ * Automatically re-connects to the previously selected printer to skip the device picker popup.
  * @param {Object} params
  * @param {string} params.sku - Product SKU code (encoded into the QR by the printer)
  * @param {string} params.name - Product Name
  * @param {number} [params.copies=1] - Number of copies to print
+ * @param {boolean} [params.forceSelect=false] - Force showing the device chooser popup
  */
-export async function printQrLabelViaBluetooth({ sku, name, copies = 1 }) {
+export async function printQrLabelViaBluetooth({ sku, name, copies = 1, forceSelect = false }) {
   if (typeof navigator === 'undefined' || !navigator.bluetooth) {
     throw new Error('Web Bluetooth is not supported on this browser. Please use Chrome, Edge, or Samsung Internet on Android/PC.');
   }
 
-  // 1. Request Bluetooth Device (supports standard BLE thermal printer GATT services)
-  const device = await navigator.bluetooth.requestDevice({
-    acceptAllDevices: true,
-    optionalServices: [
-      'e7810a71-73ae-499d-8c15-faa9aef0c3f2', // Bluepos / Standard Chinese BLE printer service
-      '000018f0-0000-1000-8000-00805f9b34fb', // Standard thermal printer service
-      '0000ffe0-0000-1000-8000-00805f9b34fb', // Common serial BLE
-      '0000ff00-0000-1000-8000-00805f9b34fb', // Alternative serial BLE
-      '49535343-fe7d-4ae5-8fa9-9fafd205e455', // ISSC transparent service
-    ],
-  });
-
-  if (!device.gatt) {
-    throw new Error('Bluetooth GATT server unavailable on selected device.');
-  }
-
-  // 2. Connect to GATT Server
-  const server = await device.gatt.connect();
+  // 1. Get or prompt for printer device
+  const { device, server } = await getOrSelectPrinter(forceSelect);
 
   try {
-    // 3. Find writable characteristic
+    // 2. Find writable characteristic
     let targetChar = null;
     const services = await server.getPrimaryServices();
 
@@ -253,8 +353,20 @@ export async function printQrLabelViaBluetooth({ sku, name, copies = 1 }) {
       throw new Error('No writable printing characteristic found on printer.');
     }
 
-    // 4. Build and send the label (multi-copy supported)
+    // 3. Build and send the label (multi-copy supported)
     await writePrinterBytes(targetChar, new Uint8Array(labelToEscPos({ sku, name, copies })));
+
+    // Update saved name on successful print
+    if (device.id) {
+      try {
+        localStorage.setItem(LAST_PRINTER_KEY, device.id);
+        if (device.name) {
+          localStorage.setItem(LAST_PRINTER_NAME_KEY, device.name);
+        }
+      } catch {
+        // ignore
+      }
+    }
 
     return true;
   } finally {
@@ -270,3 +382,4 @@ export async function printQrLabelViaBluetooth({ sku, name, copies = 1 }) {
     }, 1500);
   }
 }
+

@@ -534,7 +534,7 @@ export default function ProductList({ token, userRole, addToCart }) {
     }
   };
 
-  const handleBluetoothPrint = async () => {
+  const handleBluetoothPrint = async (forceSelect = false) => {
     if (!activeProduct || !generatedQr) return;
     setIsBtPrinting(true);
     setBtError('');
@@ -542,7 +542,8 @@ export default function ProductList({ token, userRole, addToCart }) {
       await printQrLabelViaBluetooth({
         sku: activeProduct.sku,
         name: activeProduct.name,
-        copies: printCopies
+        copies: printCopies,
+        forceSelect
       });
       const copyText = printCopies > 1 ? `${printCopies} labels` : 'QR label';
       setToast({ show: true, message: `${copyText} for ${activeProduct.sku} sent to printer!` });
@@ -1467,7 +1468,7 @@ ${labelsHtml}
 
             <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
               <button 
-                onClick={handleBluetoothPrint}
+                onClick={() => handleBluetoothPrint(false)}
                 disabled={isBtPrinting}
                 className="btn-primary" 
                 style={{ width: '100%', justifyContent: 'center', gap: '8px' }}
@@ -1483,6 +1484,25 @@ ${labelsHtml}
               >
                 <Printer size={16} />
                 System Print (58mm Tag)
+              </button>
+
+              <button
+                type="button"
+                onClick={() => handleBluetoothPrint(true)}
+                disabled={isBtPrinting}
+                style={{
+                  background: 'none',
+                  border: 'none',
+                  color: 'var(--text-muted)',
+                  fontSize: '11px',
+                  cursor: 'pointer',
+                  textDecoration: 'underline',
+                  padding: '2px 0',
+                  marginTop: '2px',
+                  alignSelf: 'center'
+                }}
+              >
+                Pair / Select different printer
               </button>
             </div>
           </div>
