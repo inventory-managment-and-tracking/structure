@@ -45,8 +45,14 @@ function resolveDiscreteConfig() {
 }
 
 function needsSsl(connectionString) {
-  if (process.env.VERCEL || process.env.NODE_ENV === 'production') return true;
-  if (!connectionString) return false;
+  if (process.env.DB_SSL === 'false') return false;
+  if (process.env.DB_SSL === 'true') return true;
+  if (process.env.VERCEL) return true;
+  if (!connectionString) {
+    const host = process.env.DB_HOST || process.env.POSTGRES_HOST;
+    if (host === 'localhost' || host === '127.0.0.1') return false;
+    return process.env.NODE_ENV === 'production';
+  }
   return (
     /sslmode=require/i.test(connectionString) ||
     /neon\.tech/i.test(connectionString) ||
