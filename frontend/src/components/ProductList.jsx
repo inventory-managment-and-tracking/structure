@@ -539,8 +539,7 @@ export default function ProductList({ token, userRole, addToCart }) {
     try {
       await printQrLabelViaBluetooth({
         sku: activeProduct.sku,
-        name: activeProduct.name,
-        qrDataUrl: generatedQr
+        name: activeProduct.name
       });
       setToast({ show: true, message: `QR label for ${activeProduct.sku} sent to printer!` });
       setTimeout(() => setToast({ show: false, message: '' }), 3500);
@@ -555,16 +554,23 @@ export default function ProductList({ token, userRole, addToCart }) {
 
   const handleSystemPrint = () => {
     if (!activeProduct || !generatedQr) return;
-    const win = window.open('', '_blank');
-    if (!win) return;
-    win.document.write(`<!DOCTYPE html>
+
+    const iframe = document.createElement('iframe');
+    iframe.setAttribute('aria-hidden', 'true');
+    iframe.style.cssText = 'position:fixed;left:-10000px;top:0;width:58mm;height:70mm;border:0;';
+    document.body.appendChild(iframe);
+
+    const frameWindow = iframe.contentWindow;
+    const doc = iframe.contentDocument || frameWindow.document;
+    doc.open();
+    doc.write(`<!DOCTYPE html>
 <html>
 <head>
   <meta charset="utf-8" />
   <title>${activeProduct.sku} - Label</title>
   <style>
     @page {
-      size: 58mm 70mm;
+      size: 58mm 70mm portrait;
       margin: 0;
     }
     * {
@@ -579,22 +585,20 @@ export default function ProductList({ token, userRole, addToCart }) {
       font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif;
     }
     .label-wrap {
+      display: block;
       width: 58mm;
-      padding: 6px 4px 10px 4px;
-      display: flex;
-      flex-direction: column;
-      align-items: center;
       text-align: center;
-      margin: 0 auto;
     }
     .qr-img {
-      width: 44mm;
-      height: 44mm;
-      image-rendering: pixelated;
       display: block;
-      margin-bottom: 4px;
+      width: 30mm;
+      height: 30mm;
+      margin: 0 auto 1mm;
+      image-rendering: pixelated;
     }
     .sku-code {
+      display: block;
+      width: 100%;
       font-size: 13px;
       font-weight: 800;
       letter-spacing: 0.5px;
@@ -602,12 +606,13 @@ export default function ProductList({ token, userRole, addToCart }) {
       word-break: break-all;
     }
     .prod-name {
+      display: block;
+      width: 50mm;
+      margin: 2px auto 0;
       font-size: 11px;
       font-weight: 600;
       color: #222;
-      margin-top: 2px;
       line-height: 1.2;
-      max-width: 50mm;
       word-break: break-word;
     }
   </style>
@@ -618,14 +623,28 @@ export default function ProductList({ token, userRole, addToCart }) {
     <div class="sku-code">${activeProduct.sku}</div>
     <div class="prod-name">${activeProduct.name}</div>
   </div>
-  <script>
-    window.onload = function() {
-      window.print();
-    };
-  </script>
 </body>
 </html>`);
-    win.document.close();
+    doc.close();
+
+    const cleanup = () => {
+      frameWindow.removeEventListener('afterprint', cleanup);
+      iframe.remove();
+    };
+
+    const printFrame = () => {
+      frameWindow.addEventListener('afterprint', cleanup);
+      frameWindow.focus();
+      frameWindow.print();
+    };
+
+    const image = doc.querySelector('img');
+    if (image && !image.complete) {
+      image.onload = printFrame;
+      image.onerror = printFrame;
+    } else {
+      printFrame();
+    }
   };
 
   const isRestricted = userRole === 'sales';
