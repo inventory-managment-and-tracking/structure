@@ -161,15 +161,23 @@ function textBlockRaster({ sku, name }) {
 
 /**
  * Builds the full 58mm tag: printer-drawn QR at the top, then SKU and name.
+ * Supports multiple copies in a single print payload with tear feeds.
  */
-export function labelToEscPos({ sku, name }) {
-  return [
+export function labelToEscPos({ sku, name, copies = 1 }) {
+  const singleLabel = [
     0x1B, 0x40,             // initialize
     0x1B, 0x61, 0x01,       // center
     ...nativeQrCommands(sku),
     ...textBlockRaster({ sku, name }),
     0x1B, 0x64, TEAR_FEED_LINES,
   ];
+
+  const fullBytes = [];
+  const count = Math.max(1, parseInt(copies, 10) || 1);
+  for (let i = 0; i < count; i++) {
+    fullBytes.push(...singleLabel);
+  }
+  return fullBytes;
 }
 
 async function writePrinterBytes(characteristic, bytes) {
@@ -195,8 +203,9 @@ async function writePrinterBytes(characteristic, bytes) {
  * @param {Object} params
  * @param {string} params.sku - Product SKU code (encoded into the QR by the printer)
  * @param {string} params.name - Product Name
+ * @param {number} [params.copies=1] - Number of copies to print
  */
-export async function printQrLabelViaBluetooth({ sku, name }) {
+export async function printQrLabelViaBluetooth({ sku, name, copies = 1 }) {
   if (typeof navigator === 'undefined' || !navigator.bluetooth) {
     throw new Error('Web Bluetooth is not supported on this browser. Please use Chrome, Edge, or Samsung Internet on Android/PC.');
   }
@@ -244,8 +253,8 @@ export async function printQrLabelViaBluetooth({ sku, name }) {
       throw new Error('No writable printing characteristic found on printer.');
     }
 
-    // 4. Build and send the label
-    await writePrinterBytes(targetChar, new Uint8Array(labelToEscPos({ sku, name })));
+    // 4. Build and send the label (multi-copy supported)
+    await writePrinterBytes(targetChar, new Uint8Array(labelToEscPos({ sku, name, copies })));
 
     return true;
   } finally {

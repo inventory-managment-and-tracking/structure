@@ -52,6 +52,7 @@ export default function ProductList({ token, userRole, addToCart }) {
   const [generatedQr, setGeneratedQr] = useState(null);
   const [isBtPrinting, setIsBtPrinting] = useState(false);
   const [btError, setBtError] = useState('');
+  const [printCopies, setPrintCopies] = useState(1);
 
   // ── Men's clothing constants ─────────────────────────────────
   const CLOTHING_SIZES = ['XS', 'S', 'M', 'L', 'XL', 'XXL'];
@@ -525,6 +526,7 @@ export default function ProductList({ token, userRole, addToCart }) {
       if (!data.success) throw new Error(data.message || 'Failed to generate QR');
 
       setGeneratedQr(data.data.qr_image);
+      setPrintCopies(1);
       setBtError('');
       setShowQrModal(true);
     } catch (err) {
@@ -539,9 +541,11 @@ export default function ProductList({ token, userRole, addToCart }) {
     try {
       await printQrLabelViaBluetooth({
         sku: activeProduct.sku,
-        name: activeProduct.name
+        name: activeProduct.name,
+        copies: printCopies
       });
-      setToast({ show: true, message: `QR label for ${activeProduct.sku} sent to printer!` });
+      const copyText = printCopies > 1 ? `${printCopies} labels` : 'QR label';
+      setToast({ show: true, message: `${copyText} for ${activeProduct.sku} sent to printer!` });
       setTimeout(() => setToast({ show: false, message: '' }), 3500);
     } catch (err) {
       if (err.name !== 'NotFoundError') {
@@ -562,6 +566,14 @@ export default function ProductList({ token, userRole, addToCart }) {
 
     const frameWindow = iframe.contentWindow;
     const doc = iframe.contentDocument || frameWindow.document;
+
+    const labelsHtml = Array.from({ length: printCopies }, () => `
+  <div class="label-wrap">
+    <img src="${generatedQr}" class="qr-img" alt="QR" />
+    <div class="sku-code">${activeProduct.sku}</div>
+    <div class="prod-name">${activeProduct.name}</div>
+  </div>`).join('');
+
     doc.open();
     doc.write(`<!DOCTYPE html>
 <html>
@@ -588,6 +600,8 @@ export default function ProductList({ token, userRole, addToCart }) {
       display: block;
       width: 58mm;
       text-align: center;
+      page-break-after: always;
+      break-after: page;
     }
     .qr-img {
       display: block;
@@ -618,11 +632,7 @@ export default function ProductList({ token, userRole, addToCart }) {
   </style>
 </head>
 <body>
-  <div class="label-wrap">
-    <img src="${generatedQr}" class="qr-img" alt="QR" />
-    <div class="sku-code">${activeProduct.sku}</div>
-    <div class="prod-name">${activeProduct.name}</div>
-  </div>
+${labelsHtml}
 </body>
 </html>`);
     doc.close();
@@ -1390,6 +1400,70 @@ export default function ProductList({ token, userRole, addToCart }) {
                 {btError}
               </div>
             )}
+
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '12px', marginBottom: '16px' }}>
+              <span style={{ fontSize: '13px', fontWeight: '600', color: 'var(--text-muted)' }}>Copies:</span>
+              <div style={{ 
+                display: 'inline-flex', 
+                alignItems: 'center', 
+                background: 'var(--surface-light)', 
+                borderRadius: '8px', 
+                border: '1px solid var(--border-color)', 
+                padding: '3px 6px',
+                gap: '4px'
+              }}>
+                <button
+                  type="button"
+                  onClick={() => setPrintCopies(c => Math.max(1, c - 1))}
+                  style={{ 
+                    width: '28px', 
+                    height: '28px', 
+                    display: 'flex', 
+                    alignItems: 'center', 
+                    justifyContent: 'center', 
+                    background: 'var(--surface)', 
+                    border: '1px solid var(--border-color)', 
+                    borderRadius: '6px', 
+                    cursor: 'pointer', 
+                    fontSize: '16px', 
+                    fontWeight: 'bold', 
+                    color: 'var(--text-color)',
+                    userSelect: 'none'
+                  }}
+                  aria-label="Decrease copies"
+                >-</button>
+                <span style={{ 
+                  minWidth: '36px', 
+                  textAlign: 'center', 
+                  fontWeight: '700', 
+                  fontSize: '15px', 
+                  color: 'var(--text-color)',
+                  userSelect: 'none' 
+                }}>
+                  {printCopies}
+                </span>
+                <button
+                  type="button"
+                  onClick={() => setPrintCopies(c => Math.min(99, c + 1))}
+                  style={{ 
+                    width: '28px', 
+                    height: '28px', 
+                    display: 'flex', 
+                    alignItems: 'center', 
+                    justifyContent: 'center', 
+                    background: 'var(--surface)', 
+                    border: '1px solid var(--border-color)', 
+                    borderRadius: '6px', 
+                    cursor: 'pointer', 
+                    fontSize: '16px', 
+                    fontWeight: 'bold', 
+                    color: 'var(--text-color)',
+                    userSelect: 'none'
+                  }}
+                  aria-label="Increase copies"
+                >+</button>
+              </div>
+            </div>
 
             <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
               <button 
