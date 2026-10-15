@@ -199,8 +199,8 @@ async function writePrinterBytes(characteristic, bytes, chunkSize = 100) {
     try {
       await write(chunk);
       offset = end;
-      // 25ms throttle prevents BLE serial UART buffer overflow on mobile
-      await new Promise((resolve) => setTimeout(resolve, 25));
+      // 10ms throttle provides fluid motor feeding while protecting BLE UART buffer
+      await new Promise((resolve) => setTimeout(resolve, 10));
     } catch (err) {
       if (chunkSize <= 20) throw err;
       chunkSize = 20;
@@ -378,12 +378,12 @@ export async function printQrLabelViaBluetooth({ sku, name, copies = 1, forceSel
     // 3. Build single label binary payload
     const singleLabelBytes = new Uint8Array(buildSingleLabelEscPos({ sku, name }));
 
-    // 4. Send each copy sequentially with pause to prevent buffer overflow & motor jamming
+    // 4. Send each copy sequentially with a brief pause for smooth continuous printing
     for (let i = 0; i < copyCount; i++) {
       await writePrinterBytes(targetChar, singleLabelBytes, 100);
       if (i < copyCount - 1) {
-        // Allow physical printer motor to advance and tear line to clear
-        await new Promise((resolve) => setTimeout(resolve, 700));
+        // Brief pause to allow physical paper tear line advance
+        await new Promise((resolve) => setTimeout(resolve, 350));
       }
     }
 
