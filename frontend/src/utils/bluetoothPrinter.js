@@ -160,18 +160,23 @@ function textBlockRaster({ sku, name }) {
 }
 
 /**
- * Builds the full 58mm tag: printer-drawn QR at the top, then SKU and name.
- * Supports multiple copies in a single print payload with tear feeds.
+ * Builds a single 58mm tag: printer-drawn QR at the top, then SKU and name.
  */
-export function labelToEscPos({ sku, name, copies = 1 }) {
-  const singleLabel = [
+export function buildSingleLabelEscPos({ sku, name }) {
+  return [
     0x1B, 0x40,             // initialize
     0x1B, 0x61, 0x01,       // center
     ...nativeQrCommands(sku),
     ...textBlockRaster({ sku, name }),
     0x1B, 0x64, TEAR_FEED_LINES,
   ];
+}
 
+/**
+ * Builds the full 58mm tag payload.
+ */
+export function labelToEscPos({ sku, name, copies = 1 }) {
+  const singleLabel = buildSingleLabelEscPos({ sku, name });
   const fullBytes = [];
   const count = Math.max(1, parseInt(copies, 10) || 1);
   for (let i = 0; i < count; i++) {
@@ -180,17 +185,22 @@ export function labelToEscPos({ sku, name, copies = 1 }) {
   return fullBytes;
 }
 
-async function writePrinterBytes(characteristic, bytes) {
+// Module-level timer to prevent rapid re-clicks from severing connections
+let disconnectTimer = null;
+
+async function writePrinterBytes(characteristic, bytes, chunkSize = 100) {
   const write = characteristic.properties.writeWithoutResponse
     ? (chunk) => characteristic.writeValueWithoutResponse(chunk)
     : (chunk) => characteristic.writeValue(chunk);
 
-  let chunkSize = 180;
   for (let offset = 0; offset < bytes.length;) {
     const end = Math.min(offset + chunkSize, bytes.length);
+    const chunk = bytes.subarray(offset, end);
     try {
-      await write(bytes.subarray(offset, end));
+      await write(chunk);
       offset = end;
+      // 25ms throttle prevents BLE serial UART buffer overflow on mobile
+      await new Promise((resolve) => setTimeout(resolve, 25));
     } catch (err) {
       if (chunkSize <= 20) throw err;
       chunkSize = 20;
@@ -237,6 +247,10 @@ let inMemoryPrinterDevice = null;
  */
 export function clearSavedBluetoothPrinter() {
   inMemoryPrinterDevice = null;
+  if (disconnectTimer) {
+    clearTimeout(disconnectTimer);
+    disconnectTimer = null;
+  }
   try {
     localStorage.removeItem(LAST_PRINTER_KEY);
     localStorage.removeItem(LAST_PRINTER_NAME_KEY);
@@ -326,6 +340,14 @@ export async function printQrLabelViaBluetooth({ sku, name, copies = 1, forceSel
     throw new Error('Web Bluetooth is not supported on this browser. Please use Chrome, Edge, or Samsung Internet on Android/PC.');
   }
 
+  // Cancel any pending disconnect from a previous print
+  if (disconnectTimer) {
+    clearTimeout(disconnectTimer);
+    disconnectTimer = null;
+  }
+
+  const copyCount = Math.max(1, parseInt(copies, 10) || 1);
+
   // 1. Get or prompt for printer device
   const { device, server } = await getOrSelectPrinter(forceSelect);
 
@@ -353,8 +375,17 @@ export async function printQrLabelViaBluetooth({ sku, name, copies = 1, forceSel
       throw new Error('No writable printing characteristic found on printer.');
     }
 
-    // 3. Build and send the label (multi-copy supported)
-    await writePrinterBytes(targetChar, new Uint8Array(labelToEscPos({ sku, name, copies })));
+    // 3. Build single label binary payload
+    const singleLabelBytes = new Uint8Array(buildSingleLabelEscPos({ sku, name }));
+
+    // 4. Send each copy sequentially with pause to prevent buffer overflow & motor jamming
+    for (let i = 0; i < copyCount; i++) {
+      await writePrinterBytes(targetChar, singleLabelBytes, 100);
+      if (i < copyCount - 1) {
+        // Allow physical printer motor to advance and tear line to clear
+        await new Promise((resolve) => setTimeout(resolve, 700));
+      }
+    }
 
     // Update saved name on successful print
     if (device.id) {
@@ -370,8 +401,9 @@ export async function printQrLabelViaBluetooth({ sku, name, copies = 1, forceSel
 
     return true;
   } finally {
-    // Graceful disconnect after print transmission
-    setTimeout(() => {
+    // Dynamic disconnect: scale delay based on number of copies so motor finishes completely
+    const disconnectDelay = Math.max(3000, copyCount * 1800 + 1500);
+    disconnectTimer = setTimeout(() => {
       try {
         if (device.gatt && device.gatt.connected) {
           device.gatt.disconnect();
@@ -379,7 +411,8 @@ export async function printQrLabelViaBluetooth({ sku, name, copies = 1, forceSel
       } catch {
         // ignore
       }
-    }, 1500);
+      disconnectTimer = null;
+    }, disconnectDelay);
   }
 }
 
