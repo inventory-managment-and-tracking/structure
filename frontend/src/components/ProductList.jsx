@@ -641,7 +641,7 @@ export default function ProductList({ token, userRole, addToCart }) {
       white-space: nowrap;
     }
     .prod-cat {
-      font-size: 10px;
+      font-size: 11px;
       font-weight: 700;
       color: #333333;
       text-transform: uppercase;
@@ -653,7 +653,7 @@ export default function ProductList({ token, userRole, addToCart }) {
       text-overflow: ellipsis;
     }
     .prod-name {
-      font-size: 13px;
+      font-size: 15px;
       font-weight: 800;
       color: #000000;
       margin-top: 3px;
@@ -1421,11 +1421,11 @@ ${labelsHtml}
               <div style={{ textAlign: 'left', overflow: 'hidden', flex: 1, paddingTop: '1px' }}>
                 <div style={{ fontSize: '14px', fontWeight: '900', color: '#000000', letterSpacing: '0.3px', whiteSpace: 'nowrap' }}>{activeProduct.sku}</div>
                 {(activeProduct.category_name || activeProduct.category) && (
-                  <div style={{ fontSize: '10px', fontWeight: '700', color: '#444444', textTransform: 'uppercase', letterSpacing: '0.4px', marginTop: '2px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                  <div style={{ fontSize: '11px', fontWeight: '700', color: '#444444', textTransform: 'uppercase', letterSpacing: '0.4px', marginTop: '2px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
                     {activeProduct.category_name || activeProduct.category}
                   </div>
                 )}
-                <div style={{ fontSize: '14px', fontWeight: '800', color: '#000000', marginTop: '3px', wordBreak: 'break-word', lineHeight: '1.2' }}>{activeProduct.name}</div>
+                <div style={{ fontSize: '15px', fontWeight: '800', color: '#000000', marginTop: '3px', wordBreak: 'break-word', lineHeight: '1.2' }}>{activeProduct.name}</div>
                 <div style={{ fontSize: '9px', color: '#777777', marginTop: '4px', fontStyle: 'italic' }}>50 × 25 mm Sticker</div>
               </div>
             </div>

@@ -206,10 +206,10 @@ async function sideBySideLabelRaster({ sku, name, category, qrImage }) {
   ctx.fillRect(0, 0, CANVAS_W, CANVAS_H);
 
   // Left: 152x152 dots (~19mm x 19mm)
-  // Shifted down to y=22 to center vertically on the pre-cut sticker
+  // Shifted to y=16 to center vertically on the pre-cut sticker
   const qrSize = 152;
   const qrX = 10;
-  const qrY = 22;
+  const qrY = 16;
 
   if (qrImage) {
     try {
@@ -240,30 +240,29 @@ async function sideBySideLabelRaster({ sku, name, category, qrImage }) {
   // 2. Category (middle, single line)
   const catText = String(category || '').trim();
   let catLines = [];
-  const catSize = 11;
-  const catLineH = catSize + 2;
+  const catSize = 13;
+  const catLineH = catSize + 3;
   if (catText) {
     ctx.font = `700 ${catSize}px ${LABEL_FONT}`;
     catLines = wrapText(ctx, catText, maxTextW, false).slice(0, 1);
   }
 
   // 3. Product Name (placed under the category)
-  let nameSize = Math.min(skuSize, 15);
+  let nameSize = Math.min(skuSize, 17);
   ctx.font = `800 ${nameSize}px ${LABEL_FONT}`;
   let nameLines = wrapText(ctx, name, maxTextW, false);
-  if (nameLines.length > 2 && nameSize > 13) {
-    nameSize = 13;
+  if (nameLines.length > 2 && nameSize > 14) {
+    nameSize = 14;
     ctx.font = `800 ${nameSize}px ${LABEL_FONT}`;
     nameLines = wrapText(ctx, name, maxTextW, false);
   }
   const nameLineH = nameSize + 3;
 
-  const catBlockH = catLines.length > 0 ? (3 + catLineH) : 0;
+  const catBlockH = catLines.length > 0 ? (4 + catLineH) : 0;
   const textBlockH = (skuLines.length * skuLineH) + catBlockH + 4 + (nameLines.length * nameLineH);
 
-  // Push SKU placement up by ~1mm (approx 8-10 dots) compared to center,
-  // creating well-deserved room below for the Category and Product Name to be printed.
-  let textY = Math.max(14, qrY + Math.round((qrSize - textBlockH) / 2) - 10);
+  // Vertically align the text block evenly with the QR code
+  let textY = qrY + Math.max(0, Math.round((qrSize - textBlockH) / 2));
 
   // Draw SKU
   ctx.fillStyle = '#000000';
@@ -275,8 +274,8 @@ async function sideBySideLabelRaster({ sku, name, category, qrImage }) {
 
   // Draw Category (if present)
   if (catLines.length > 0) {
-    textY += 3;
-    ctx.fillStyle = '#222222';
+    textY += 4;
+    ctx.fillStyle = '#333333';
     ctx.font = `700 ${catSize}px ${LABEL_FONT}`;
     for (const line of catLines) {
       ctx.fillText(line, textX, textY);
@@ -536,8 +535,8 @@ export async function printQrLabelViaBluetooth({ sku, name, category, qrImage, c
       }
     }
 
-    // End-of-job feed: advance the last printed sticker completely past the tear bar (~10-12mm)
-    const END_JOB_FEED = new Uint8Array([0x1B, 0x64, 0x03]);
+    // End-of-job feed: advance the last printed sticker right to the tear bar without over-feeding
+    const END_JOB_FEED = new Uint8Array([0x1B, 0x64, 0x01]);
     await writePrinterBytes(targetChar, END_JOB_FEED, 100);
 
     // Update saved name on successful print
