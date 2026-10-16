@@ -108,4 +108,41 @@ router.post('/webhook', (req, res) => {
   });
 });
 
+/**
+ * GET /api/deploy/status
+ * Check deployment status and recent logs directly from a browser.
+ */
+router.get('/status', (_req, res) => {
+  const vpsLogPath = '/home/d3l1v3ry/htdocs/clothtrack/deploy.log';
+  const localLogPath = path.resolve(__dirname, '../../../../deploy.log');
+  const logFile = fs.existsSync(vpsLogPath) ? vpsLogPath : localLogPath;
+
+  if (!fs.existsSync(logFile)) {
+    return res.json({
+      success: true,
+      status: 'No deployment logs recorded yet.',
+      logs: [],
+    });
+  }
+
+  try {
+    const content = fs.readFileSync(logFile, 'utf8');
+    const lines = content.trim().split('\n');
+    const recent = lines.slice(-25);
+    const isCompleted = recent.some((l) => l.includes('Deployment completed successfully'));
+    const isStarted = recent.some((l) => l.includes('Deployment started'));
+
+    return res.json({
+      success: true,
+      status: isCompleted ? 'idle_success' : (isStarted ? 'deploying' : 'unknown'),
+      recentLogs: recent,
+    });
+  } catch (err) {
+    return res.status(500).json({
+      success: false,
+      message: 'Failed to read deployment log: ' + err.message,
+    });
+  }
+});
+
 module.exports = router;
