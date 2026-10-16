@@ -1,8 +1,9 @@
 'use strict';
 
-require('dotenv').config();
 const fs = require('fs');
 const path = require('path');
+require('dotenv').config({ path: path.resolve(__dirname, '.env') });
+require('dotenv').config({ path: path.resolve(__dirname, '../.env') });
 const app = require('./src/app');
 
 const PREFERRED_PORT = Number.parseInt(process.env.PORT, 10) || 3000;

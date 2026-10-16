@@ -542,6 +542,7 @@ export default function ProductList({ token, userRole, addToCart }) {
       await printQrLabelViaBluetooth({
         sku: activeProduct.sku,
         name: activeProduct.name,
+        qrImage: generatedQr,
         copies: printCopies,
         forceSelect
       });
@@ -562,7 +563,7 @@ export default function ProductList({ token, userRole, addToCart }) {
 
     const iframe = document.createElement('iframe');
     iframe.setAttribute('aria-hidden', 'true');
-    iframe.style.cssText = 'position:fixed;left:-10000px;top:0;width:58mm;height:70mm;border:0;';
+    iframe.style.cssText = 'position:fixed;left:-10000px;top:0;width:50mm;height:25mm;border:0;';
     document.body.appendChild(iframe);
 
     const frameWindow = iframe.contentWindow;
@@ -571,8 +572,10 @@ export default function ProductList({ token, userRole, addToCart }) {
     const labelsHtml = Array.from({ length: printCopies }, () => `
   <div class="label-wrap">
     <img src="${generatedQr}" class="qr-img" alt="QR" />
-    <div class="sku-code">${activeProduct.sku}</div>
-    <div class="prod-name">${activeProduct.name}</div>
+    <div class="text-col">
+      <div class="sku-code">${activeProduct.sku}</div>
+      <div class="prod-name">${activeProduct.name}</div>
+    </div>
   </div>`).join('');
 
     doc.open();
@@ -583,7 +586,7 @@ export default function ProductList({ token, userRole, addToCart }) {
   <title>${activeProduct.sku} - Label</title>
   <style>
     @page {
-      size: 58mm 70mm portrait;
+      size: 50mm 25mm landscape;
       margin: 0;
     }
     * {
@@ -592,41 +595,48 @@ export default function ProductList({ token, userRole, addToCart }) {
       padding: 0;
     }
     html, body {
-      width: 58mm;
+      width: 50mm;
+      height: 25mm;
       background: #fff;
       color: #000;
       font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif;
     }
     .label-wrap {
-      display: block;
-      width: 58mm;
-      text-align: center;
+      display: flex;
+      align-items: center;
+      width: 50mm;
+      height: 25mm;
+      padding: 2mm 3mm;
       page-break-after: always;
       break-after: page;
+      overflow: hidden;
     }
     .qr-img {
-      display: block;
-      width: 30mm;
-      height: 30mm;
-      margin: 0 auto 1mm;
+      width: 20mm;
+      height: 20mm;
+      margin-right: 3mm;
+      flex-shrink: 0;
       image-rendering: pixelated;
     }
+    .text-col {
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      overflow: hidden;
+      flex-grow: 1;
+    }
     .sku-code {
-      display: block;
-      width: 100%;
-      font-size: 13px;
-      font-weight: 800;
-      letter-spacing: 0.5px;
+      font-size: 14px;
+      font-weight: 900;
+      letter-spacing: 0.3px;
       line-height: 1.2;
       word-break: break-all;
     }
     .prod-name {
-      display: block;
-      width: 50mm;
-      margin: 2px auto 0;
-      font-size: 11px;
-      font-weight: 600;
-      color: #222;
+      font-size: 12px;
+      font-weight: 700;
+      color: #111;
+      margin-top: 3px;
       line-height: 1.2;
       word-break: break-word;
     }
@@ -1384,12 +1394,15 @@ ${labelsHtml}
               <button onClick={() => setShowQrModal(false)} className="modal-close-btn"><X size={18} /></button>
             </div>
             
-            <div className="qr-preview-wrapper animate-fade">
-              <div className="qr-image-frame">
-                <img src={generatedQr} alt={`QR Code for ${activeProduct.sku}`} />
+            <div className="qr-preview-wrapper animate-fade" style={{ display: 'flex', flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: '14px', padding: '14px', border: '1px dashed var(--border-color)', borderRadius: '10px', background: '#ffffff', color: '#000000', margin: '16px auto', maxWidth: '320px' }}>
+              <div className="qr-image-frame" style={{ width: '80px', height: '80px', flexShrink: 0, margin: 0, padding: 0, border: 'none' }}>
+                <img src={generatedQr} alt={`QR Code for ${activeProduct.sku}`} style={{ width: '100%', height: '100%', objectFit: 'contain' }} />
               </div>
-              <div className="qr-print-tag-sku">{activeProduct.sku}</div>
-              <div className="qr-print-tag-name">{activeProduct.name}</div>
+              <div style={{ textAlign: 'left', overflow: 'hidden', flex: 1 }}>
+                <div style={{ fontSize: '15px', fontWeight: '900', color: '#000000', letterSpacing: '0.3px', wordBreak: 'break-all' }}>{activeProduct.sku}</div>
+                <div style={{ fontSize: '13px', fontWeight: '700', color: '#222222', marginTop: '3px', wordBreak: 'break-word', lineHeight: '1.2' }}>{activeProduct.name}</div>
+                <div style={{ fontSize: '10px', color: '#777777', marginTop: '4px', fontStyle: 'italic' }}>50 × 25 mm Sticker</div>
+              </div>
             </div>
 
             <p style={{ fontSize: '11px', color: 'var(--text-dim)', marginBottom: '16px' }}>
