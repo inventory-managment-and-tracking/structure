@@ -38,7 +38,7 @@ npm install --production
 # 3. Build frontend application
 echo "[3/4] Building frontend..."
 cd "$REPO_DIR/frontend"
-npm install
+npm install --include=dev
 npm run build
 chmod -R o+rx "$REPO_DIR/frontend/dist"
 
