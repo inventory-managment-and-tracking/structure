@@ -187,10 +187,10 @@ async function sideBySideLabelRaster({ sku, name, qrImage }) {
   ctx.fillStyle = '#ffffff';
   ctx.fillRect(0, 0, CANVAS_W, CANVAS_H);
 
-  // Left: 156x156 dots (~19.5mm x 19.5mm)
+  // Left: 152x152 dots (~19mm x 19mm)
   // Shifted down to y=22 to center vertically on the pre-cut sticker
-  const qrSize = 156;
-  const qrX = 12;
+  const qrSize = 152;
+  const qrX = 10;
   const qrY = 22;
 
   if (qrImage) {
@@ -203,23 +203,30 @@ async function sideBySideLabelRaster({ sku, name, qrImage }) {
   }
 
   // Right: SKU & Product Name
-  const textX = 178;
-  const maxTextW = CANVAS_W - textX - 8; // ~198 dots wide
+  const textX = 168;
+  const maxTextW = CANVAS_W - textX - 6; // ~210 dots wide
 
   ctx.textAlign = 'left';
   ctx.textBaseline = 'top';
 
-  const skuSize = 22;
-  const nameSize = 19;
-  const skuLineH = 26;
-  const nameLineH = 23;
-
+  // Auto-fit SKU on a single line so it NEVER wraps
+  let skuSize = 20;
   ctx.font = `900 ${skuSize}px ${LABEL_FONT}`;
-  const skuLines = wrapText(ctx, sku, maxTextW, true);
-  ctx.font = `700 ${nameSize}px ${LABEL_FONT}`;
+  while (skuSize > 13 && ctx.measureText(sku).width > maxTextW) {
+    skuSize -= 1;
+    ctx.font = `900 ${skuSize}px ${LABEL_FONT}`;
+  }
+
+  // Make Product Name as large as the SKU
+  const nameSize = skuSize;
+  const skuLineH = skuSize + 4;
+  const nameLineH = nameSize + 4;
+
+  const skuLines = [sku]; // Single line guaranteed
+  ctx.font = `800 ${nameSize}px ${LABEL_FONT}`;
   const nameLines = wrapText(ctx, name, maxTextW, false);
 
-  const textBlockH = (skuLines.length * skuLineH) + 6 + (nameLines.length * nameLineH);
+  const textBlockH = (skuLines.length * skuLineH) + 8 + (nameLines.length * nameLineH);
   // Vertically align the text block to the center of the QR code
   let textY = qrY + Math.max(0, Math.round((qrSize - textBlockH) / 2));
 
@@ -231,10 +238,10 @@ async function sideBySideLabelRaster({ sku, name, qrImage }) {
     textY += skuLineH;
   }
 
-  // Draw Name
-  textY += 6;
-  ctx.fillStyle = '#111111';
-  ctx.font = `700 ${nameSize}px ${LABEL_FONT}`;
+  // Draw Name (same size as SKU)
+  textY += 8;
+  ctx.fillStyle = '#000000';
+  ctx.font = `800 ${nameSize}px ${LABEL_FONT}`;
   for (const line of nameLines) {
     ctx.fillText(line, textX, textY);
     textY += nameLineH;

@@ -29,8 +29,8 @@ const { getDbStatus }   = require('./config/db');
 
 const app = express();
 
-// Required on Vercel so rate-limit and req.ip work behind the edge proxy.
-if (process.env.VERCEL) {
+// Required behind reverse proxies (Nginx / Vercel) so rate-limit and req.ip work
+if (process.env.VERCEL || process.env.NODE_ENV === 'production') {
   app.set('trust proxy', 1);
 }
 
