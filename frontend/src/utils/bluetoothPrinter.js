@@ -306,7 +306,7 @@ export async function buildSingleLabelEscPos({ sku, name, category, qrImage }) {
       0x1B, 0x40,        // initialize
       0x1B, 0x61, 0x01,  // center
       ...raster,
-      0x1D, 0x0C,        // GS FF: triggers hardware optical gap sensor to feed to exact cut line
+      0x1B, 0x4A, 14,    // exact 14 dots feed (196 + 14 = 210 dots = 26.25mm roll pitch)
     ];
   }
 
@@ -315,7 +315,7 @@ export async function buildSingleLabelEscPos({ sku, name, category, qrImage }) {
     0x1B, 0x61, 0x01,
     ...nativeQrCommands(sku),
     ...textBlockRaster({ sku, name, category }),
-    0x1D, 0x0C,
+    0x1B, 0x4A, 14,
   ];
 }
 
