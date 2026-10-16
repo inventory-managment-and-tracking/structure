@@ -2,6 +2,7 @@
 # ClothTrack Auto-Deploy Script for VPS
 # Strictly isolated to ClothTrack (/home/d3l1v3ry/htdocs/clothtrack)
 # Never touches or affects the delivery platform
+# Auto-deployment active via GitHub Webhook
 
 set -e
 
