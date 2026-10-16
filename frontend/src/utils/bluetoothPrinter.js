@@ -306,7 +306,7 @@ export async function buildSingleLabelEscPos({ sku, name, category, qrImage }) {
       0x1B, 0x40,        // initialize
       0x1B, 0x61, 0x01,  // center
       ...raster,
-      0x1B, 0x64, 0x01,  // feed 1 line (matches pre-cut sticker gap)
+      0x1D, 0x0C,        // GS FF: triggers hardware optical gap sensor to feed to exact cut line
     ];
   }
 
@@ -315,7 +315,7 @@ export async function buildSingleLabelEscPos({ sku, name, category, qrImage }) {
     0x1B, 0x61, 0x01,
     ...nativeQrCommands(sku),
     ...textBlockRaster({ sku, name, category }),
-    0x1B, 0x64, 0x01,
+    0x1D, 0x0C,
   ];
 }
 
@@ -535,9 +535,6 @@ export async function printQrLabelViaBluetooth({ sku, name, category, qrImage, c
       }
     }
 
-    // End-of-job feed: advance the last printed sticker right to the tear bar without over-feeding
-    const END_JOB_FEED = new Uint8Array([0x1B, 0x64, 0x01]);
-    await writePrinterBytes(targetChar, END_JOB_FEED, 100);
 
     // Update saved name on successful print
     if (device.id) {
