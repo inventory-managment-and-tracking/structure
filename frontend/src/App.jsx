@@ -42,6 +42,7 @@ export default function App() {
   const [isLoggingIn, setIsLoggingIn] = useState(false);
 
   // Cart POS state
+  const [posMode, setPosMode] = useState('sell');
   const [cart, setCart] = useState([]);
   const [skuSearchVal, setSkuSearchVal] = useState('');
   const [skuSearchError, setSkuSearchError] = useState('');
@@ -252,7 +253,7 @@ export default function App() {
       }
 
       const product = data.data;
-      if (product.quantity <= 0) {
+      if (posMode === 'sell' && product.quantity <= 0) {
         throw new Error(`Product "${product.name}" is out of stock!`);
       }
 
@@ -493,13 +494,19 @@ export default function App() {
           <div className="animate-fade">
             <div className="page-header">
               <div className="page-title-section">
-                <h2 className="page-title">POS Checkout Terminal</h2>
-                <p className="page-description">Scan tags using your camera or enter SKUs manually to checkout customers</p>
+                <h2 className="page-title">
+                  {posMode === 'refund' ? 'POS Returns & Refunds Desk' : 'POS Checkout Terminal'}
+                </h2>
+                <p className="page-description">
+                  {posMode === 'refund'
+                    ? 'Scan or enter returned items, match to original sales, and issue refunds or store credits'
+                    : 'Scan tags using your camera or enter SKUs manually to checkout customers'}
+                </p>
               </div>
             </div>
 
             <div className="pos-layout">
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+              <div className="pos-left-column">
                 
                 {/* 1. Real Camera QR Scanner Component */}
                 <QRScanner 
@@ -508,37 +515,45 @@ export default function App() {
                 />
 
                 {/* 2. Manual Barcode/SKU Input Fallback */}
-                <div className="bg-glass" style={{ padding: '24px', borderRadius: '14px' }}>
-                  <h4 style={{ fontSize: '14px', marginBottom: '12px' }}>Manual SKU/Barcode Input</h4>
+                <div className="bg-glass scanner-manual-card">
+                  <div className="scanner-manual-header">
+                    <h4 className="scanner-manual-title">
+                      {posMode === 'refund' ? 'Return Item by SKU / Barcode' : 'Manual SKU / Barcode Input'}
+                    </h4>
+                    <span className="scanner-manual-subtitle">
+                      {posMode === 'refund' ? 'Scan tag or enter SKU to add to refund queue' : 'Type or paste SKU if scanner camera is unavailable'}
+                    </span>
+                  </div>
+
                   <div className="scanner-manual-fallback">
-                    <div style={{ position: 'relative', flexGrow: 1 }}>
-                      <Search size={16} style={{ position: 'absolute', left: '12px', top: '14px', color: 'var(--text-dim)' }} />
+                    <div className="sku-search-input-wrapper">
+                      <Search size={16} className="sku-search-icon" />
                       <input 
                         type="text" 
-                        placeholder="e.g. CLT-20260601-1234"
+                        placeholder={posMode === 'refund' ? 'e.g. CLT-20260601-1234 (item to return)' : 'e.g. CLT-20260601-1234'}
                         value={skuSearchVal}
                         onChange={(e) => setSkuSearchVal(e.target.value)}
-                        style={{ paddingLeft: '36px' }}
+                        className="sku-search-input"
                         onKeyDown={(e) => {
                           if (e.key === 'Enter') handleBarcodeLookup(skuSearchVal);
                         }}
                       />
                     </div>
                     <button 
+                      type="button"
                       onClick={() => handleBarcodeLookup(skuSearchVal)}
-                      className="btn-primary"
+                      className={`btn-primary sku-search-btn ${posMode === 'refund' ? 'btn-refund' : ''}`}
                     >
-                      Lookup SKU
+                      {posMode === 'refund' ? 'Add to Return' : 'Lookup SKU'}
                     </button>
                   </div>
 
                   {skuSearchError && (
-                    <div style={{ color: 'var(--danger-color)', fontSize: '12px', background: 'var(--danger-glow)', padding: '10px 14px', borderRadius: '6px', marginTop: '12px' }}>
-                      {skuSearchError}
+                    <div className="sku-search-error">
+                      <AlertCircle size={14} style={{ flexShrink: 0 }} />
+                      <span>{skuSearchError}</span>
                     </div>
                   )}
-
-
                 </div>
               </div>
 
@@ -549,6 +564,8 @@ export default function App() {
                 removeFromCart={removeFromCart}
                 overrideLineTotal={overrideLineTotal}
                 token={token}
+                posMode={posMode}
+                onPosModeChange={setPosMode}
                 onCheckoutSuccess={() => setCart([])}
               />
             </div>

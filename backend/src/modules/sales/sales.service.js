@@ -160,6 +160,47 @@ async function listSales(filters = {}) {
   return rows;
 }
 
+/**
+ * Sale lines for a product that still have quantity not yet returned.
+ * Used at refund time so the cashier picks which discounted sale to match.
+ */
+async function openSalesForProduct(productId) {
+  const pid = parseInt(productId, 10);
+  if (!Number.isInteger(pid) || pid <= 0) {
+    const err = new Error('Invalid product id');
+    err.status = 400;
+    throw err;
+  }
+
+  const { rows } = await pool.query(
+    `SELECT
+       si.id            AS sale_item_id,
+       s.id             AS sale_id,
+       s.sale_code,
+       s.created_at,
+       u.full_name      AS sold_by_name,
+       si.unit_price,
+       si.subtotal,
+       si.quantity,
+       si.is_discounted,
+       (si.quantity - COALESCE(ret.returned_qty, 0))::int AS remaining_qty
+     FROM sale_items si
+     JOIN sales s ON s.id = si.sale_id
+     LEFT JOIN users u ON u.id = s.sold_by
+     LEFT JOIN (
+       SELECT sale_id, product_id, SUM(quantity)::int AS returned_qty
+       FROM returns
+       WHERE product_id = $1 AND sale_id IS NOT NULL
+       GROUP BY sale_id, product_id
+     ) ret ON ret.sale_id = si.sale_id AND ret.product_id = si.product_id
+     WHERE si.product_id = $1
+       AND si.quantity - COALESCE(ret.returned_qty, 0) > 0
+     ORDER BY s.created_at DESC`,
+    [pid]
+  );
+  return rows;
+}
+
 async function getSaleById(id) {
   const { rows: saleRows } = await pool.query(
     `SELECT s.*,
@@ -188,4 +229,4 @@ async function getSaleById(id) {
   return { ...saleRows[0], items };
 }
 
-module.exports = { createSale, listSales, getSaleById };
+module.exports = { createSale, listSales, getSaleById, openSalesForProduct };

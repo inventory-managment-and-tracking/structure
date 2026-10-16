@@ -625,25 +625,44 @@
 .trend-up { color: var(--success-color); }
 .trend-down { color: var(--danger-color); }
 
-/* QR SCANNER SECTION (Mobile Responsive POS Setup) */
+/* QR SCANNER & POS LAYOUT SECTION */
 .pos-layout {
   display: grid;
-  grid-template-columns: 1fr 380px;
+  grid-template-columns: minmax(0, 1.15fr) minmax(400px, 480px);
   gap: 24px;
+  align-items: start;
+}
+
+@media (min-width: 1400px) {
+  .pos-layout {
+    grid-template-columns: minmax(0, 1.25fr) minmax(440px, 510px);
+  }
+}
+
+.pos-layout > * {
+  min-width: 0;
+}
+
+.pos-left-column {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  min-width: 0;
 }
 
 .pos-scanner-container {
   display: flex;
   flex-direction: column;
-  gap: 20px;
+  gap: 16px;
+  width: 100%;
 }
 
 .scanner-viewport-wrapper {
   position: relative;
   aspect-ratio: 4/3;
   width: 100%;
-  max-width: 580px;
-  margin: 0 auto;
+  max-width: 100%;
+  margin: 0;
   border-radius: var(--radius-md);
   overflow: hidden;
   border: 2px dashed rgba(79, 70, 229, 0.35);
@@ -699,207 +718,1100 @@
 
 .scanner-header-row {
   display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+/* Manual SKU Input Card */
+.scanner-manual-card {
+  padding: 22px 24px;
+  border-radius: var(--radius-md);
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.scanner-manual-header {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.scanner-manual-title {
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--text-main);
+  margin: 0;
+}
+
+.scanner-manual-subtitle {
+  font-size: 12px;
+  color: var(--text-muted);
 }
 
 .scanner-manual-fallback {
   display: flex;
-  gap: 10px;
-  max-width: 580px;
-  margin: 0 auto;
+  align-items: center;
+  gap: 12px;
+  max-width: 100%;
+  margin: 0;
   width: 100%;
+}
+
+.sku-search-input-wrapper {
+  position: relative;
+  flex: 1;
+  display: flex;
+  align-items: center;
+  min-width: 0;
+}
+
+.sku-search-icon {
+  position: absolute;
+  left: 14px;
+  top: 50%;
+  transform: translateY(-50%);
+  color: var(--text-dim);
+  pointer-events: none;
+}
+
+.sku-search-input {
+  width: 100%;
+  height: 46px;
+  padding: 0 16px 0 42px;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--surface-border);
+  background: var(--surface-light);
+  color: var(--text-main);
+  font-size: 14px;
+  transition: var(--transition-fast);
+}
+
+.sku-search-input:focus {
+  border-color: var(--primary-color);
+  box-shadow: 0 0 0 3px var(--primary-glow);
+}
+
+.sku-search-btn {
+  height: 46px;
+  padding: 0 22px;
+  font-size: 14px;
+  font-weight: 700;
+  white-space: nowrap;
+  flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: var(--radius-sm);
+}
+
+.btn-refund {
+  background: var(--danger-color) !important;
+  box-shadow: 0 4px 12px var(--danger-glow) !important;
+}
+
+.btn-refund:hover {
+  background: #b91c1c !important;
+}
+
+.sku-search-error {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--danger-color);
+  font-size: 12px;
+  background: var(--danger-glow);
+  padding: 10px 14px;
+  border-radius: 6px;
+  border: 1px solid rgba(220, 38, 38, 0.2);
 }
 
 /* POS Cart / Checkout view */
 .pos-cart-panel {
   display: flex;
   flex-direction: column;
-  height: calc(100vh - 120px);
+  height: calc(100vh - 80px);
+  max-height: calc(100vh - 80px);
+  min-height: 520px;
   position: sticky;
-  top: 40px;
-  padding: 24px;
+  top: 24px;
+  padding: 20px 20px 0 20px;
   border-radius: var(--radius-md);
+  min-width: 0;
+  overflow: hidden;
+  background: var(--surface-color);
+  border: 1px solid var(--surface-border);
+  box-shadow: var(--glass-shadow);
+  transition: border-color var(--transition-fast);
 }
 
+.pos-cart-panel--refund {
+  border-top: 3px solid var(--danger-color);
+}
+
+/* Mode Switcher Tabs */
+.pos-cart-mode-tabs {
+  display: flex;
+  gap: 4px;
+  background: var(--surface-light);
+  border: 1px solid var(--surface-border);
+  border-radius: 10px;
+  padding: 4px;
+  margin-bottom: 14px;
+  flex-shrink: 0;
+}
+
+.pos-cart-mode-tab {
+  flex: 1;
+  padding: 8px 14px;
+  border-radius: 7px;
+  font-size: 13px;
+  font-weight: 600;
+  background: transparent;
+  color: var(--text-muted);
+  transition: var(--transition-fast);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  border: none;
+  cursor: pointer;
+}
+
+.pos-cart-mode-tab:hover {
+  color: var(--text-main);
+  background: rgba(0, 0, 0, 0.03);
+}
+
+.pos-cart-mode-tab--active {
+  background: var(--surface-color);
+  color: var(--primary-color);
+  font-weight: 700;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.08);
+}
+
+.pos-cart-mode-tab--active.pos-cart-mode-tab--refund {
+  color: var(--danger-color);
+  background: var(--surface-color);
+}
+
+/* Panel Header */
 .cart-header {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding-bottom: 16px;
+  padding-bottom: 12px;
   border-bottom: 1px solid var(--surface-border);
-  margin-bottom: 16px;
+  margin-bottom: 12px;
+  flex-shrink: 0;
 }
 
 .cart-title {
-  font-size: 18px;
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 10px;
+}
+
+.cart-title-icon-wrapper {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  border-radius: 8px;
+  background: var(--primary-glow);
+  color: var(--primary-color);
+  flex-shrink: 0;
+}
+
+.pos-cart-panel--refund .cart-title-icon-wrapper {
+  background: var(--danger-glow);
+  color: var(--danger-color);
+}
+
+.cart-title-text {
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--text-main);
+  margin: 0;
+  line-height: 1.2;
+}
+
+.cart-subtitle-text {
+  font-size: 11px;
+  color: var(--text-dim);
 }
 
 .cart-count-badge {
-  background: var(--primary-glow);
-  color: var(--primary-color);
-  padding: 2px 10px;
+  background: var(--surface-light);
+  color: var(--text-muted);
+  border: 1px solid var(--surface-border);
+  padding: 3px 10px;
   border-radius: 20px;
-  font-size: 12px;
+  font-size: 11px;
   font-weight: 700;
 }
 
+.pos-cart-panel--refund .cart-count-badge {
+  background: var(--danger-glow);
+  color: var(--danger-color);
+  border-color: rgba(220, 38, 38, 0.2);
+}
+
+/* Scroll Area for Items — this is the ONLY scrollable region; config panel lives inside */
 .cart-items-scroll {
-  flex-grow: 1;
+  flex: 1 1 auto;
+  min-height: 0;
   overflow-y: auto;
-  margin-bottom: 16px;
+  overflow-x: hidden;
   display: flex;
   flex-direction: column;
-  gap: 12px;
+  gap: 10px;
   padding-right: 4px;
+  padding-bottom: 12px;
 }
+
+/* Empty State */
+.cart-empty-state {
+  text-align: center;
+  color: var(--text-dim);
+  padding: 36px 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  align-items: center;
+  justify-content: center;
+  margin: auto 0;
+}
+
+.cart-empty-icon-wrap {
+  width: 54px;
+  height: 54px;
+  border-radius: 50%;
+  background: var(--surface-light);
+  border: 1px solid var(--surface-border);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--text-dim);
+}
+
+.cart-empty-state-title {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text-muted);
+  margin: 0;
+}
+
+.cart-empty-state-hint {
+  font-size: 12px;
+  color: var(--text-dim);
+  margin: 0;
+  max-width: 260px;
+  line-height: 1.4;
+}
+
+/* ──────────────────────────────────────────────────────────────
+   SELL MODE ITEM ROW
+   ────────────────────────────────────────────────────────────── */
 
 .cart-item-row {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 12px;
+  gap: 12px;
+  padding: 10px 12px;
   background: var(--surface-light);
   border-radius: var(--radius-sm);
   border: 1px solid var(--surface-border);
-  animation: fadeIn 0.25s ease-out;
+  transition: var(--transition-fast);
+}
+
+.cart-item-row:hover {
+  border-color: rgba(79, 70, 229, 0.25);
 }
 
 .cart-item-meta {
   flex: 1;
   min-width: 0;
-  padding-right: 8px;
   display: flex;
   flex-direction: column;
-  gap: 4px;
+  gap: 2px;
 }
 
 .cart-item-name {
   font-size: 13px;
   font-weight: 600;
-  line-height: 1.35;
+  color: var(--text-main);
+  white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
-  display: -webkit-box;
-  -webkit-line-clamp: 2;
-  -webkit-box-orient: vertical;
-  word-break: break-word;
+  line-height: 1.3;
 }
 
 .cart-item-sku {
   font-size: 11px;
   color: var(--text-dim);
+  white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
-  white-space: nowrap;
+}
+
+.cart-discount-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  font-size: 10px;
+  font-weight: 600;
+  padding: 1px 6px;
+  border-radius: 4px;
+  background: rgba(5, 150, 105, 0.1);
+  color: var(--success-color);
+  width: fit-content;
+  margin-top: 2px;
+}
+
+.cart-line-unit-hint {
+  font-size: 10px;
+  color: var(--text-dim);
+  margin-top: 1px;
 }
 
 .cart-item-controls {
   display: flex;
   align-items: center;
   gap: 8px;
+  flex-shrink: 0;
 }
 
-.qty-btn {
+/* Stepper Pill */
+.cart-stepper {
+  display: inline-flex;
+  align-items: center;
+  background: var(--surface-color);
+  border: 1px solid var(--surface-border);
+  border-radius: 6px;
+  overflow: hidden;
+}
+
+.cart-stepper-btn {
   width: 24px;
   height: 24px;
-  border-radius: 4px;
-  background: var(--surface-hover);
-  color: var(--text-main);
-  border: 1px solid var(--surface-border);
   display: flex;
   align-items: center;
   justify-content: center;
+  font-size: 13px;
   font-weight: 700;
+  color: var(--text-muted);
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  transition: var(--transition-fast);
 }
 
-.qty-btn:hover {
+.cart-stepper-btn:hover:not(:disabled) {
   background: var(--primary-glow);
   color: var(--primary-color);
 }
 
-.cart-item-price-calc {
+.cart-stepper-qty {
+  min-width: 22px;
+  text-align: center;
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--text-main);
+  padding: 0 2px;
+}
+
+/* Price column & inline edit */
+.cart-item-price-col {
   text-align: right;
-  min-width: 70px;
+  min-width: 72px;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+}
+
+.cart-price-display-cluster {
+  display: flex;
+  align-items: center;
+  gap: 4px;
 }
 
 .cart-item-price {
   font-size: 13px;
   font-weight: 700;
+  color: var(--text-main);
+  white-space: nowrap;
+}
+
+.cart-icon-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  border-radius: 5px;
+  color: var(--text-dim);
+  background: transparent;
+  border: 1px solid transparent;
+  cursor: pointer;
+  transition: var(--transition-fast);
+}
+
+.cart-icon-btn--edit:hover {
+  color: var(--primary-color);
+  background: var(--primary-glow);
+  border-color: rgba(79, 70, 229, 0.2);
+}
+
+.cart-icon-btn--delete:hover {
+  color: var(--danger-color);
+  background: var(--danger-glow);
+  border-color: rgba(220, 38, 38, 0.2);
+}
+
+.cart-price-edit-inline {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.cart-price-edit-inline .cart-price-input {
+  width: 68px;
+  height: 26px;
+  padding: 2px 6px;
+  font-size: 11px;
+  font-family: var(--font-mono);
+  font-weight: 700;
+  border-radius: 4px;
+  border: 1px solid var(--primary-color);
+  background: var(--surface-color);
+  color: var(--text-main);
+  text-align: right;
+}
+
+.cart-price-actions {
+  display: flex;
+  gap: 2px;
+}
+
+.cart-price-btn {
+  width: 22px;
+  height: 22px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 4px;
+  border: 1px solid var(--surface-border);
+  background: var(--surface-color);
+  cursor: pointer;
+}
+
+.cart-price-btn.save:hover {
+  background: var(--success-glow);
+  color: var(--success-color);
+  border-color: var(--success-color);
+}
+
+.cart-price-btn.cancel:hover {
+  background: var(--danger-glow);
+  color: var(--danger-color);
+  border-color: var(--danger-color);
+}
+
+/* ──────────────────────────────────────────────────────────────
+   REFUND ITEM CARD (Ultra Clean Alignment)
+   ────────────────────────────────────────────────────────────── */
+
+.cart-item-row--refund {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 12px;
+  padding: 12px 14px;
+  background: var(--surface-color);
+  border: 1px solid var(--surface-border);
+  border-radius: var(--radius-sm);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
+  transition: border-color var(--transition-fast), background var(--transition-fast);
+}
+
+.cart-item-row--refund.has-sale-picked {
+  border-color: rgba(5, 150, 105, 0.4);
+  background: rgba(5, 150, 105, 0.015);
+}
+
+.cart-item-row--refund.missing-sale-picked {
+  border-color: rgba(217, 119, 6, 0.4);
+}
+
+/* Header of refund item card */
+.refund-item-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.refund-item-title-col {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.refund-item-name {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--text-main);
+  line-height: 1.3;
+}
+
+.refund-item-meta-badges {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.refund-sku-pill {
+  font-size: 10px;
+  padding: 2px 7px;
+  border-radius: 4px;
+  background: var(--surface-light);
+  border: 1px solid var(--surface-border);
+  color: var(--text-muted);
+}
+
+.refund-qty-stepper {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  background: var(--surface-light);
+  border: 1px solid var(--surface-border);
+  border-radius: 5px;
+  padding: 1px 3px;
+}
+
+.refund-qty-btn {
+  width: 18px;
+  height: 18px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 12px;
+  font-weight: 700;
+  background: transparent;
+  border: none;
+  border-radius: 3px;
+  color: var(--text-muted);
+  cursor: pointer;
+  transition: var(--transition-fast);
+}
+
+.refund-qty-btn:hover:not(:disabled) {
+  background: var(--danger-glow);
+  color: var(--danger-color);
+}
+
+.refund-qty-btn:disabled {
+  opacity: 0.3;
+  cursor: not-allowed;
+}
+
+.refund-qty-text {
+  font-size: 11px;
+  color: var(--text-muted);
+  padding: 0 4px;
+}
+
+/* Original sale selection box */
+.refund-sale-box {
+  background: var(--surface-light);
+  border: 1px solid var(--surface-border);
+  border-radius: 8px;
+  padding: 10px 12px;
+}
+
+.refund-sale-box-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 8px;
+  font-size: 11px;
+}
+
+.refund-sale-box-title {
+  font-weight: 700;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  font-size: 10px;
+}
+
+.refund-sale-status-badge {
+  font-size: 10px;
+  font-weight: 700;
+  padding: 2px 7px;
+  border-radius: 10px;
+}
+
+.refund-sale-status-badge--loading {
+  background: var(--surface-hover);
+  color: var(--text-dim);
+}
+
+.refund-sale-status-badge--selected {
+  background: var(--success-glow);
+  color: var(--success-color);
+}
+
+.refund-sale-status-badge--pending {
+  background: var(--warning-glow);
+  color: var(--warning-color);
+}
+
+.refund-sale-status-badge--error {
+  background: var(--danger-glow);
+  color: var(--danger-color);
+}
+
+.refund-sale-loading-state {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 11px;
+  color: var(--text-muted);
+  padding: 6px 0;
+}
+
+.refund-mini-spinner {
+  width: 12px;
+  height: 12px;
+  border: 2px solid var(--surface-border);
+  border-top-color: var(--primary-color);
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+.refund-sale-empty-state {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  font-size: 11px;
+  color: var(--danger-color);
+  background: var(--danger-glow);
+  border: 1px solid rgba(220, 38, 38, 0.15);
+  border-radius: 6px;
+  padding: 8px 10px;
+  line-height: 1.35;
+}
+
+.refund-sale-empty-state p {
+  margin: 2px 0 0;
+  font-size: 10px;
+  opacity: 0.85;
+}
+
+.refund-sale-empty-icon {
+  flex-shrink: 0;
+  margin-top: 1px;
+}
+
+/* Sale option cards */
+.refund-sale-options-list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.refund-sale-option-card {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px 10px;
+  border-radius: 6px;
+  border: 1px solid var(--surface-border);
+  background: var(--surface-color);
+  cursor: pointer;
+  transition: all var(--transition-fast);
+  text-align: left;
+  width: 100%;
+  gap: 10px;
+}
+
+.refund-sale-option-card:hover {
+  border-color: var(--primary-color);
+  background: var(--surface-hover);
+}
+
+.refund-sale-option-card.selected {
+  border-color: var(--success-color);
+  background: rgba(5, 150, 105, 0.06);
+  box-shadow: 0 0 0 1px var(--success-color);
+}
+
+.refund-sale-card-left {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+  flex: 1;
+}
+
+.refund-radio-circle {
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  border: 1.5px solid var(--text-dim);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  transition: all var(--transition-fast);
+}
+
+.refund-sale-option-card.selected .refund-radio-circle {
+  border-color: var(--success-color);
+  background: var(--success-color);
+}
+
+.refund-radio-dot {
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: #fff;
+}
+
+.refund-sale-card-details {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  min-width: 0;
+}
+
+.refund-sale-code-text {
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--text-main);
+}
+
+.refund-sale-time-text {
+  font-size: 10px;
+  color: var(--text-dim);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.refund-sale-card-right {
+  text-align: right;
+  flex-shrink: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 1px;
+}
+
+.refund-sale-amount-text {
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--success-color);
+}
+
+.refund-sale-qty-info {
+  font-size: 10px;
+  color: var(--text-dim);
+}
+
+.refund-sale-discount-tag {
+  color: var(--warning-color);
+  font-weight: 600;
+}
+
+/* Footer of refund item card */
+.refund-item-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding-top: 8px;
+  border-top: 1px dashed var(--surface-border);
+  font-size: 12px;
+}
+
+.refund-item-footer-label {
+  color: var(--text-muted);
+  font-weight: 600;
+}
+
+.refund-item-footer-amount {
+  font-size: 13px;
+  font-weight: 800;
+  color: var(--danger-color);
+}
+
+/* ──────────────────────────────────────────────────────────────
+   RETURN POLICY & REASON CONFIGURATION SECTION
+   Placed inside cart-items-scroll so it scrolls with items and
+   the checkout button stays pinned at the bottom.
+   ────────────────────────────────────────────────────────────── */
+
+.refund-config-panel {
+  background: var(--surface-light);
+  border: 1px solid var(--surface-border);
+  border-radius: var(--radius-sm);
+  padding: 12px 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  flex-shrink: 0;
+  margin-top: 4px;
+}
+
+.refund-config-header {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.refund-config-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+}
+
+@media (max-width: 480px) {
+  .refund-config-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+.refund-field {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.refund-field-label {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--text-muted);
+}
+
+.refund-select {
+  height: 36px;
+  padding: 0 10px;
+  border-radius: 6px;
+  border: 1px solid var(--surface-border);
+  background: var(--surface-color);
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--text-main);
+  transition: var(--transition-fast);
+}
+
+.refund-select:focus {
+  border-color: var(--danger-color);
+  box-shadow: 0 0 0 2px var(--danger-glow);
+}
+
+.refund-condition-hint {
+  font-size: 10px;
+  line-height: 1.35;
+  padding: 5px 8px;
+  border-radius: 4px;
+}
+
+.refund-condition-hint--restock {
+  background: var(--success-glow);
+  color: var(--success-color);
+}
+
+.refund-condition-hint--norestock {
+  background: var(--warning-glow);
+  color: var(--warning-color);
+}
+
+/* Settlement chips */
+.refund-methods-row {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 6px;
+}
+
+.refund-method-chip {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 7px 4px;
+  border-radius: 6px;
+  border: 1px solid var(--surface-border);
+  background: var(--surface-color);
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--text-muted);
+  cursor: pointer;
+  transition: all var(--transition-fast);
+  white-space: nowrap;
+}
+
+.refund-method-chip:hover {
+  border-color: var(--primary-color);
+  color: var(--text-main);
+}
+
+.refund-method-chip.active {
+  border-color: var(--danger-color);
+  background: rgba(220, 38, 38, 0.08);
+  color: var(--danger-color);
+  font-weight: 700;
+}
+
+.refund-input {
+  height: 36px;
+  padding: 0 12px;
+  border-radius: 6px;
+  border: 1px solid var(--surface-border);
+  background: var(--surface-color);
+  font-size: 12px;
+  color: var(--text-main);
+  transition: var(--transition-fast);
+}
+
+.refund-input:focus {
+  border-color: var(--danger-color);
+  box-shadow: 0 0 0 2px var(--danger-glow);
+}
+
+/* ──────────────────────────────────────────────────────────────
+   SUMMARY & CHECKOUT ACTIONS — sticky footer
+   ────────────────────────────────────────────────────────────── */
+
+.pos-cart-footer {
+  flex-shrink: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+  background: var(--surface-color);
+  border-top: 1px solid var(--surface-border);
+  padding: 12px 0 16px;
+  /* stick to bottom of the flex column panel */
 }
 
 .cart-summary-calculations {
-  border-top: 1px solid var(--surface-border);
-  padding-top: 16px;
-  margin-bottom: 16px;
+  padding: 0 0 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
 }
 
 .calc-row {
   display: flex;
+  align-items: center;
   justify-content: space-between;
-  font-size: 13px;
+  font-size: 12px;
   color: var(--text-muted);
-  margin-bottom: 8px;
 }
 
 .calc-row.total {
-  font-size: 18px;
+  font-size: 16px;
   font-weight: 800;
   color: var(--text-main);
   border-top: 1px dashed var(--surface-border);
-  padding-top: 12px;
+  padding-top: 8px;
+  margin-top: 4px;
 }
 
-/* Payment selection grid */
-.payment-methods-grid {
-  display: grid;
-  grid-template-columns: repeat(2, 1fr);
-  gap: 10px;
-  margin-bottom: 16px;
+.calc-row.total.total--refund {
+  color: var(--danger-color);
 }
 
-.payment-method-card {
-  border: 1px solid var(--surface-border);
-  border-radius: var(--radius-sm);
-  padding: 10px;
-  text-align: center;
+.pos-cart-alert {
   display: flex;
-  flex-direction: column;
   align-items: center;
-  gap: 6px;
-  color: var(--text-muted);
-  transition: var(--transition-fast);
+  gap: 8px;
+  background: var(--danger-glow);
+  color: var(--danger-color);
+  border: 1px solid rgba(220, 38, 38, 0.3);
+  padding: 8px 12px;
+  border-radius: 6px;
+  font-size: 12px;
+  margin-bottom: 8px;
+  flex-shrink: 0;
 }
 
-.payment-method-card.active {
-  border-color: var(--primary-color);
-  background: var(--primary-glow);
-  color: var(--primary-color);
+.pos-cart-notice {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: var(--warning-glow);
+  color: var(--warning-color);
+  border: 1px solid rgba(217, 119, 6, 0.25);
+  padding: 8px 12px;
+  border-radius: 6px;
+  font-size: 12px;
+  margin-bottom: 8px;
+  flex-shrink: 0;
+  font-weight: 500;
 }
 
 .checkout-btn {
   width: 100%;
-  padding: 14px;
+  height: 50px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
   background: var(--success-color);
   color: #fff;
   border-radius: var(--radius-sm);
   font-weight: 700;
-  font-size: 15px;
-  box-shadow: 0 4px 12px var(--success-glow);
+  font-size: 14px;
+  letter-spacing: -0.01em;
+  box-shadow: 0 4px 14px var(--success-glow);
+  transition: all var(--transition-fast);
+  flex-shrink: 0;
+  border: none;
+  cursor: pointer;
 }
 
-.checkout-btn:hover {
-  filter: brightness(1.1);
+.checkout-btn:hover:not(:disabled) {
+  filter: brightness(1.08);
   transform: translateY(-1px);
 }
 
 .checkout-btn:disabled {
-  background: var(--surface-light);
-  color: var(--text-dim);
-  box-shadow: none;
+  opacity: 0.55;
   cursor: not-allowed;
+  filter: grayscale(0.35);
+  box-shadow: none;
+  transform: none;
 }
+
+.checkout-btn--refund {
+  background: var(--danger-color);
+  box-shadow: 0 4px 14px var(--danger-glow);
+}
+
+.checkout-btn--refund:hover:not(:disabled) {
+  filter: brightness(1.08);
+}
+
 
 /* Thermal Receipt Styling */
 .receipt-overlay {
@@ -908,77 +1820,142 @@
   left: 0;
   right: 0;
   bottom: 0;
-  background: rgba(0, 0, 0, 0.8);
+  background: rgba(0, 0, 0, 0.75);
   display: flex;
   align-items: center;
   justify-content: center;
-  z-index: 1100;
+  z-index: 1200;
   padding: 20px;
-  backdrop-filter: blur(4px);
+  backdrop-filter: blur(5px);
 }
 
 .receipt-card {
-  background: #fdfdfd;
-  color: #111;
+  background: #ffffff;
+  color: #111827;
   width: 100%;
   max-width: 360px;
-  border-radius: var(--radius-sm);
+  border-radius: var(--radius-md);
   padding: 24px;
-  box-shadow: 0 20px 40px rgba(0,0,0,0.5);
-  font-family: 'Courier New', Courier, monospace;
+  box-shadow: 0 24px 48px rgba(0, 0, 0, 0.35);
   position: relative;
   max-height: 90vh;
   overflow-y: auto;
+  border: 1px solid var(--surface-border);
+}
+
+.receipt-status-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 12px;
+}
+
+.receipt-status-icon--success {
+  color: var(--success-color);
+}
+
+.receipt-status-icon--refund {
+  color: var(--danger-color);
 }
 
 .receipt-title {
   text-align: center;
-  font-weight: bold;
+  font-weight: 800;
   font-size: 18px;
-  text-transform: uppercase;
-  margin-bottom: 6px;
+  color: var(--text-main);
+  margin-bottom: 4px;
+  letter-spacing: -0.01em;
 }
 
 .receipt-meta {
   text-align: center;
   font-size: 11px;
-  color: #555;
+  color: var(--text-muted);
   margin-bottom: 16px;
-  line-height: 1.4;
-  border-bottom: 1px dashed #333;
+  line-height: 1.5;
+  border-bottom: 1px dashed var(--surface-border);
   padding-bottom: 12px;
 }
 
 .receipt-dashed-line {
-  border-top: 1px dashed #333;
+  border-top: 1px dashed var(--surface-border);
   margin: 12px 0;
 }
 
 .receipt-items {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
   font-size: 12px;
-  line-height: 1.4;
 }
 
 .receipt-item {
   display: flex;
+  align-items: flex-start;
   justify-content: space-between;
-  margin-bottom: 8px;
+  gap: 10px;
+}
+
+.receipt-item-name {
+  color: var(--text-main);
+  font-weight: 500;
+  line-height: 1.35;
+}
+
+.receipt-item-subtotal {
+  font-weight: 700;
+  white-space: nowrap;
+  color: var(--text-main);
 }
 
 .receipt-totals {
   display: flex;
+  align-items: center;
   justify-content: space-between;
-  font-size: 14px;
-  font-weight: bold;
+  font-size: 15px;
+  font-weight: 800;
+  color: var(--text-main);
   margin-top: 8px;
 }
 
-.receipt-footer-msg {
-  text-align: center;
-  font-size: 10px;
-  color: #666;
-  margin-top: 24px;
-  line-height: 1.4;
+.receipt-actions {
+  display: flex;
+  gap: 10px;
+  margin-top: 20px;
+}
+
+.receipt-btn {
+  flex: 1;
+  height: 42px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  border-radius: var(--radius-sm);
+  font-weight: 700;
+  font-size: 13px;
+  border: none;
+  cursor: pointer;
+  transition: var(--transition-fast);
+}
+
+.receipt-btn--primary {
+  background: var(--text-main);
+  color: #fff;
+}
+
+.receipt-btn--primary:hover {
+  background: #000;
+}
+
+.receipt-btn--secondary {
+  background: var(--surface-light);
+  color: var(--text-main);
+  border: 1px solid var(--surface-border);
+}
+
+.receipt-btn--secondary:hover {
+  background: var(--surface-hover);
 }
 
 .receipt-dismiss-btn {
@@ -1633,10 +2610,20 @@
     grid-template-columns: 1fr;
   }
 
+  /* On tablets/mobile, remove sticky height and let the panel grow naturally */
   .pos-cart-panel {
     position: static;
     height: auto;
+    max-height: none;
+    min-height: auto;
     margin-top: 24px;
+    padding-bottom: 0;
+  }
+
+  /* The scroll area becomes free-growing on mobile instead of capped */
+  .pos-cart-panel .cart-items-scroll {
+    max-height: 60vh;
+    overflow-y: auto;
   }
 }
 
@@ -2395,6 +3382,8 @@
   color: var(--primary-color);
 }
 
+
+
 /* Sales staff personal report */
 .sales-my-report .sales-my-welcome {
   display: flex;
@@ -2562,63 +3551,68 @@
   }
 
   .pos-cart-panel {
-    padding: 18px;
+    padding: 16px 16px 0 16px;
+  }
+
+  .pos-cart-footer {
+    padding: 10px 0 14px;
   }
 
   .page-description {
     max-width: none;
   }
+
+  .refund-sale-option {
+    min-height: 44px;
+    padding: 10px 12px;
+  }
+
+  /* Compact refund config on tablets to save vertical space */
+  .refund-config-panel {
+    padding: 10px 12px;
+    gap: 8px;
+  }
+
+  .refund-config-grid {
+    grid-template-columns: 1fr;
+    gap: 8px;
+  }
+
+  .refund-methods-row {
+    gap: 5px;
+  }
+
+  .refund-method-chip {
+    padding: 8px 4px;
+    font-size: 11px;
+  }
+
+  /* Ensure sale option cards are touch-friendly */
+  .refund-sale-option-card {
+    min-height: 52px;
+    padding: 10px 12px;
+  }
+
+  /* Give item cards slightly less internal spacing on tablet */
+  .cart-item-row--refund {
+    gap: 10px;
+    padding: 10px 12px;
+  }
 }
 
 @media (max-width: 767px) {
-  .cart-item-row {
-    flex-direction: column;
-    align-items: stretch;
-    gap: 10px;
-  }
-
-  .cart-item-meta {
-    padding-right: 0;
-  }
-
-  .cart-item-controls {
-    width: 100%;
+  .cart-item-row:not(.cart-item-row--refund) {
+    flex-direction: row;
+    align-items: center;
     justify-content: space-between;
-    flex-wrap: wrap;
     gap: 10px;
-    row-gap: 8px;
   }
 
-  .cart-item-price-calc {
-    min-width: 0;
-    flex: 1 1 120px;
-    text-align: right;
-  }
-
-  .cart-price-display {
+  .cart-item-row:not(.cart-item-row--refund) .cart-item-controls {
+    display: flex;
+    align-items: center;
+    gap: 8px;
     justify-content: flex-end;
-  }
-
-  .cart-price-edit--line {
-    width: 100%;
-    min-width: 0;
-    align-items: stretch;
-  }
-
-  .cart-price-edit-label {
-    text-align: left;
-  }
-
-  .cart-price-edit-row {
-    width: 100%;
-    justify-content: flex-end;
-  }
-
-  .cart-price-input--line {
-    flex: 1;
-    min-width: 0;
-    max-width: none;
-    width: auto;
   }
 
   .cart-discount-badge {
@@ -2696,8 +3690,12 @@
 
 @media (max-width: 480px) {
   .pos-cart-panel {
-    padding: 14px;
+    padding: 12px 12px 0 12px;
     border-radius: var(--radius-sm);
+  }
+
+  .pos-cart-footer {
+    padding: 8px 0 12px;
   }
 
   .cart-header {
@@ -2709,29 +3707,38 @@
     font-size: 15px !important;
   }
 
-  .cart-item-controls {
-    display: grid;
-    grid-template-columns: auto auto 1fr auto;
-    align-items: center;
-    column-gap: 8px;
+  .cart-item-row:not(.cart-item-row--refund) {
+    flex-wrap: wrap;
+    padding: 10px;
   }
 
-  .cart-item-price-calc {
-    grid-column: 1 / -1;
-    text-align: left;
-    padding-top: 4px;
+  .cart-item-row:not(.cart-item-row--refund) .cart-item-meta {
+    flex: 1 1 100%;
+    margin-bottom: 4px;
+  }
+
+  .cart-item-row:not(.cart-item-row--refund) .cart-item-controls {
+    width: 100%;
+    justify-content: space-between;
+    padding-top: 6px;
     border-top: 1px dashed var(--surface-border);
   }
 
-  .cart-price-display,
-  .cart-price-edit-row {
-    justify-content: space-between;
-    width: 100%;
+  /* Extra compact refund config on phone */
+  .refund-config-panel {
+    padding: 8px 10px;
+    gap: 7px;
   }
 
-  .qty-btn {
-    width: 32px;
-    height: 32px;
+  .refund-select,
+  .refund-input {
+    height: 40px;
+    font-size: 13px;
+  }
+
+  .checkout-btn {
+    height: 52px;
+    font-size: 15px;
   }
 
   .sales-my-history {

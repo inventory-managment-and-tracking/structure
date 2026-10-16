@@ -15,6 +15,12 @@ async function getOne(req, res, next) {
   } catch (err) { next(err); }
 }
 
+async function openForProduct(req, res, next) {
+  try {
+    res.json({ success: true, data: await svc.openSalesForProduct(req.params.productId) });
+  } catch (err) { next(err); }
+}
+
 async function create(req, res, next) {
   try {
     const errors = validationResult(req);
@@ -24,4 +30,4 @@ async function create(req, res, next) {
   } catch (err) { next(err); }
 }
 
-module.exports = { list, getOne, create };
+module.exports = { list, getOne, create, openForProduct };

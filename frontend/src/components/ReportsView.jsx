@@ -223,13 +223,19 @@ export default function ReportsView({ token, userRole }) {
       <div className="metrics-grid">
         <div className="metric-card bg-glass">
           <div className="metric-header">
-            <span className="metric-title">Gross Revenue</span>
+            <span className="metric-title">Net Revenue</span>
             <div className="metric-icon-wrapper" style={{ background: 'var(--primary-glow)', color: 'var(--primary-color)' }}>
               <TrendingUp size={18} />
             </div>
           </div>
-          <div className="metric-value text-gold">{formatBirr(salesSummary?.total_revenue || 0)}</div>
-          <div className="metric-sub">Accumulated checkout sales value</div>
+          <div className="metric-value text-gold">
+            {formatBirr((salesSummary?.net_revenue ?? salesSummary?.total_revenue) || 0)}
+          </div>
+          <div className="metric-sub">
+            {salesSummary?.total_refunded
+              ? `${formatBirr(salesSummary.gross_revenue || 0)} gross · ${formatBirr(salesSummary.total_refunded)} refunded`
+              : 'Sales after refunds in this period'}
+          </div>
         </div>
 
         <div className="metric-card bg-glass">

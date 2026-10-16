@@ -31,9 +31,11 @@ export default function Dashboard({
 
   const metrics = [
     {
-      title: 'Gross Revenue',
-      value: formatBirr(dbSalesSummary?.total_revenue || 0),
-      sub: `Across ${dbSalesSummary?.total_sales || 0} POS checkout tickets`,
+      title: 'Net Revenue',
+      value: formatBirr((dbSalesSummary?.net_revenue ?? dbSalesSummary?.total_revenue) || 0),
+      sub: dbSalesSummary?.total_refunded
+        ? `${formatBirr(dbSalesSummary.total_refunded)} refunded · ${dbSalesSummary?.total_sales || 0} open tickets`
+        : `Across ${dbSalesSummary?.total_sales || 0} POS checkout tickets`,
       icon: TrendingUp,
       accent: 'metric-accent-indigo',
       iconClass: 'metric-icon-indigo',

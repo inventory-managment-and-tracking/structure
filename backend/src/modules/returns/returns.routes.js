@@ -24,8 +24,7 @@ router.post(
     body('refund_type')
       .isIn(['cash', 'store_credit', 'exchange'])
       .withMessage('Invalid refund_type'),
-    body('sale_id').optional().isInt({ gt: 0 }),
-    body('refund_amount').optional().isFloat({ min: 0 }),
+    body('sale_id').isInt({ gt: 0 }).withMessage('sale_id is required — pick which sale to refund'),
   ],
   ctrl.create
 );

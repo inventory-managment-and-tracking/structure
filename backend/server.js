@@ -4,6 +4,14 @@ const fs = require('fs');
 const path = require('path');
 require('dotenv').config({ path: path.resolve(__dirname, '.env') });
 require('dotenv').config({ path: path.resolve(__dirname, '../.env') });
+
+if (!process.env.JWT_SECRET?.trim()) {
+  console.error(
+    '[SERVER] JWT_SECRET is missing. Copy backend/.env.example to backend/.env and set JWT_SECRET.'
+  );
+  process.exit(1);
+}
+
 const app = require('./src/app');
 
 const PREFERRED_PORT = Number.parseInt(process.env.PORT, 10) || 3000;

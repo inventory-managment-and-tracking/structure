@@ -17,15 +17,69 @@ function generateReturnCode() {
  *  - If condition = 'missing_tags' → same as damaged (no restore)
  *  - After commit: resolve any open low_stock_alert if stock now above threshold
  */
+function refundAmountForLine(saleItem, returnQty) {
+  const qty = parseInt(returnQty, 10);
+  const lineQty = parseInt(saleItem.quantity, 10);
+  const subtotal = parseFloat(saleItem.subtotal);
+  if (qty >= lineQty) {
+    return parseFloat(subtotal.toFixed(2));
+  }
+  return parseFloat(((subtotal / lineQty) * qty).toFixed(2));
+}
+
+async function getRemainingQtyForSaleLine(client, saleId, productId) {
+  const { rows: itemRows } = await client.query(
+    `SELECT id, quantity, unit_price, subtotal
+     FROM sale_items
+     WHERE sale_id = $1 AND product_id = $2`,
+    [saleId, productId]
+  );
+  if (!itemRows.length) return null;
+
+  const saleItem = itemRows[0];
+  const { rows: retRows } = await client.query(
+    `SELECT COALESCE(SUM(quantity), 0)::int AS returned_qty
+     FROM returns
+     WHERE sale_id = $1 AND product_id = $2`,
+    [saleId, productId]
+  );
+  const returned = retRows[0].returned_qty;
+  const remaining = parseInt(saleItem.quantity, 10) - returned;
+  return { saleItem, remaining };
+}
+
 async function processReturn(data, userId) {
   const {
     sale_id, product_id, quantity, reason,
-    condition, refund_type, refund_amount, notes,
+    condition, refund_type, notes,
   } = data;
+
+  const returnQty = parseInt(quantity, 10);
+  if (!sale_id) {
+    throw Object.assign(new Error('sale_id is required — pick which sale to refund'), { status: 400 });
+  }
 
   const client = await pool.connect();
   try {
     await client.query('BEGIN');
+
+    const lineInfo = await getRemainingQtyForSaleLine(client, sale_id, product_id);
+    if (!lineInfo) {
+      throw Object.assign(
+        new Error('This product was not sold on the selected sale'),
+        { status: 400 }
+      );
+    }
+    if (lineInfo.remaining < returnQty) {
+      throw Object.assign(
+        new Error(
+          `Cannot return ${returnQty} — only ${lineInfo.remaining} left to refund on this sale`
+        ),
+        { status: 400 }
+      );
+    }
+
+    const refund_amount = refundAmountForLine(lineInfo.saleItem, returnQty);
 
     const { rows: prodRows } = await client.query(
       'SELECT id, quantity, low_stock_threshold FROM products WHERE id = $1 AND is_active = TRUE FOR UPDATE',
@@ -45,13 +99,13 @@ async function processReturn(data, userId) {
        RETURNING *`,
       [
         return_code,
-        sale_id   || null,
+        sale_id,
         product_id,
-        quantity,
+        returnQty,
         reason,
         condition,
         refund_type,
-        refund_amount || null,
+        refund_amount,
         userId,
         notes || null,
       ]
@@ -63,7 +117,7 @@ async function processReturn(data, userId) {
     let   movType;
 
     if (condition === 'resellable') {
-      qty_after = qty_before + quantity;
+      qty_after = qty_before + returnQty;
       movType   = 'return';
 
       await client.query('UPDATE products SET quantity = $1 WHERE id = $2', [qty_after, product_id]);
@@ -79,7 +133,7 @@ async function processReturn(data, userId) {
       [
         product_id,
         movType,
-        condition === 'resellable' ? quantity : 0,
+        condition === 'resellable' ? returnQty : 0,
         qty_before,
         qty_after,
         returnRecord.id,

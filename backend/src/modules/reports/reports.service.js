@@ -11,23 +11,75 @@ function dateFilter(filters, alias = 's') {
   return { conds, values, nextIdx: idx };
 }
 
+function returnDateFilter(filters, alias = 'r') {
+  const conds  = [];
+  const values = [];
+  let   idx    = 1;
+  if (filters.date_from) { conds.push(`${alias}.created_at >= $${idx++}`); values.push(filters.date_from); }
+  if (filters.date_to)   { conds.push(`${alias}.created_at <= $${idx++}`); values.push(filters.date_to); }
+  return { conds, values, nextIdx: idx };
+}
+
 // ── Sales summary ─────────────────────────────────────────────
 async function salesSummary(filters = {}) {
   const { conds, values } = dateFilter(filters);
-  const where = conds.length ? `WHERE ${conds.join(' AND ')}` : '';
+  const saleWhere = conds.length ? `WHERE ${conds.join(' AND ')}` : '';
+
+  const { conds: retConds, values: retValues } = returnDateFilter(filters);
+  const retCondsOffset = retConds.map((c) =>
+    c.replace(/\$(\d+)/g, (_, n) => `$${parseInt(n, 10) + values.length}`)
+  );
+  const returnWhere = retCondsOffset.length ? `WHERE ${retCondsOffset.join(' AND ')}` : '';
+  const allValues = [...values, ...retValues];
 
   const { rows } = await pool.query(
-    `SELECT
-       COUNT(DISTINCT s.id)::int                          AS total_sales,
-       COALESCE(SUM(s.total_amount), 0)::numeric(12,2)   AS total_revenue,
-       COALESCE(SUM(si.quantity), 0)::int                AS total_items_sold,
-       COALESCE(AVG(s.total_amount), 0)::numeric(10,2)   AS avg_sale_value
-     FROM sales s
-     LEFT JOIN sale_items si ON si.sale_id = s.id
-     ${where}`,
-    values
+    `WITH gross AS (
+       SELECT
+         COALESCE(SUM(si.subtotal), 0)::numeric(12,2) AS gross_revenue,
+         COALESCE(SUM(si.quantity), 0)::int             AS items_gross
+       FROM sale_items si
+       JOIN sales s ON s.id = si.sale_id
+       ${saleWhere}
+     ),
+     refunded AS (
+       SELECT
+         COALESCE(SUM(r.refund_amount), 0)::numeric(12,2) AS total_refunded,
+         COALESCE(SUM(r.quantity), 0)::int                AS items_returned
+       FROM returns r
+       ${returnWhere}
+     ),
+     open_sales AS (
+       SELECT COUNT(DISTINCT s.id)::int AS total_sales
+       FROM sales s
+       JOIN sale_items si ON si.sale_id = s.id
+       LEFT JOIN (
+         SELECT sale_id, product_id, SUM(quantity)::int AS ret_qty
+         FROM returns
+         WHERE sale_id IS NOT NULL
+         GROUP BY sale_id, product_id
+       ) ret ON ret.sale_id = si.sale_id AND ret.product_id = si.product_id
+       ${saleWhere}
+         ${saleWhere ? 'AND' : 'WHERE'} si.quantity - COALESCE(ret.ret_qty, 0) > 0
+     )
+     SELECT
+       open_sales.total_sales,
+       gross.gross_revenue,
+       refunded.total_refunded,
+       (gross.gross_revenue - refunded.total_refunded)::numeric(12,2) AS net_revenue,
+       (gross.items_gross - refunded.items_returned)::int             AS total_items_sold,
+       CASE WHEN open_sales.total_sales > 0
+         THEN ((gross.gross_revenue - refunded.total_refunded) / open_sales.total_sales)::numeric(10,2)
+         ELSE 0::numeric(10,2)
+       END AS avg_sale_value,
+       gross.gross_revenue AS total_revenue
+     FROM gross, refunded, open_sales`,
+    allValues
   );
-  return rows[0];
+  const row = rows[0];
+  return {
+    ...row,
+    total_revenue: row.net_revenue,
+  };
 }
 
 // ── Sales by employee ─────────────────────────────────────────
@@ -61,7 +113,15 @@ async function salesByProduct(filters = {}) {
   let   idx = nextIdx;
 
   const limitVal = parseInt(filters.limit, 10) || 20;
+
+  const { conds: retConds, values: retValues } = returnDateFilter(filters);
+  const retCondsOffset = retConds.map((c) =>
+    c.replace(/\$(\d+)/g, (_, n) => `$${parseInt(n, 10) + values.length}`)
+  );
+  const returnDateSql = retCondsOffset.length ? retCondsOffset.join(' AND ') : 'TRUE';
+  values.push(...retValues);
   values.push(limitVal);
+  idx = values.length;
 
   const { rows } = await pool.query(
     `SELECT
@@ -71,7 +131,17 @@ async function salesByProduct(filters = {}) {
        p.quantity AS current_stock,
        c.name     AS category,
        COALESCE(SUM(si.quantity), 0)::int               AS total_sold,
-       COALESCE(SUM(si.subtotal), 0)::numeric(12,2)     AS total_revenue
+       COALESCE(SUM(si.subtotal), 0)::numeric(12,2)     AS gross_revenue,
+       COALESCE((
+         SELECT SUM(r.refund_amount)
+         FROM returns r
+         WHERE r.product_id = p.id AND ${returnDateSql}
+       ), 0)::numeric(12,2) AS total_refunded,
+       (COALESCE(SUM(si.subtotal), 0) - COALESCE((
+         SELECT SUM(r.refund_amount)
+         FROM returns r
+         WHERE r.product_id = p.id AND ${returnDateSql}
+       ), 0))::numeric(12,2) AS total_revenue
      FROM products p
      LEFT JOIN categories c  ON c.id = p.category_id
      LEFT JOIN sale_items si ON si.product_id = p.id
@@ -235,11 +305,14 @@ async function dailyStaffActivity(date) {
          r.created_at  AS return_created_at,
          r.quantity,
          r.refund_amount,
+         r.sale_id,
+         s.sold_by     AS seller_id,
          p.name        AS product_name,
          p.sku         AS product_sku
        FROM returns r
        JOIN users u ON u.id = r.processed_by
        JOIN products p ON p.id = r.product_id
+       LEFT JOIN sales s ON s.id = r.sale_id
        WHERE r.created_at >= $1 AND r.created_at <= $2
        ORDER BY u.full_name, r.created_at`,
       [dateFrom, dateTo]
@@ -256,7 +329,8 @@ async function dailyStaffActivity(date) {
         username: row.username,
         sales_count: 0,
         items_sold: 0,
-        total_revenue: 0,
+        gross_revenue: 0,
+        refunded_on_sales: 0,
         returns_count: 0,
         returns_qty: 0,
         total_refunded: 0,
@@ -282,7 +356,7 @@ async function dailyStaffActivity(date) {
       staff.sales.push(sale);
       staff._saleIds.add(row.sale_id);
       staff.sales_count += 1;
-      staff.total_revenue += parseFloat(row.total_amount || 0);
+      staff.gross_revenue += parseFloat(row.total_amount || 0);
     }
     staff.items_sold += parseInt(row.quantity, 10);
     sale.items.push({
@@ -300,6 +374,9 @@ async function dailyStaffActivity(date) {
     staff.returns_count += 1;
     staff.returns_qty += parseInt(row.quantity, 10);
     staff.total_refunded += parseFloat(row.refund_amount || 0);
+    if (row.seller_id && staffMap.has(row.seller_id)) {
+      staffMap.get(row.seller_id).refunded_on_sales += parseFloat(row.refund_amount || 0);
+    }
     staff.returns.push({
       return_code: row.return_code,
       product_name: row.product_name,
@@ -312,13 +389,18 @@ async function dailyStaffActivity(date) {
 
   const staff = Array.from(staffMap.values())
     .filter((s) => s.sales_count > 0 || s.returns_count > 0)
-    .map(({ _saleIds, total_revenue, total_refunded, ...rest }) => ({
-      ...rest,
-      total_revenue: total_revenue.toFixed(2),
-      total_refunded: total_refunded.toFixed(2),
-    }))
+    .map(({ _saleIds, gross_revenue, refunded_on_sales, total_refunded, ...rest }) => {
+      const net = gross_revenue - refunded_on_sales;
+      return {
+        ...rest,
+        gross_revenue: gross_revenue.toFixed(2),
+        total_revenue: net.toFixed(2),
+        net_revenue: net.toFixed(2),
+        total_refunded: total_refunded.toFixed(2),
+      };
+    })
     .sort((a, b) => {
-      const revDiff = parseFloat(b.total_revenue) - parseFloat(a.total_revenue);
+      const revDiff = parseFloat(b.net_revenue) - parseFloat(a.net_revenue);
       if (revDiff !== 0) return revDiff;
       return (a.full_name || '').localeCompare(b.full_name || '');
     });
@@ -329,20 +411,46 @@ async function dailyStaffActivity(date) {
 // ── Sales trend (daily aggregation) ───────────────────────────
 async function salesTrend(filters = {}) {
   const { conds, values } = dateFilter(filters, 's');
-  const where = conds.length ? `WHERE ${conds.join(' AND ')}` : '';
+  const saleWhere = conds.length ? `WHERE ${conds.join(' AND ')}` : '';
+
+  const { conds: retConds, values: retValues } = returnDateFilter(filters);
+  const retCondsOffset = retConds.map((c) =>
+    c.replace(/\$(\d+)/g, (_, n) => `$${parseInt(n, 10) + values.length}`)
+  );
+  const returnWhere = retCondsOffset.length ? `WHERE ${retCondsOffset.join(' AND ')}` : '';
+  const allValues = [...values, ...retValues];
 
   const { rows } = await pool.query(
-    `SELECT
-       TO_CHAR(s.created_at, 'YYYY-MM-DD') AS date,
-       COALESCE(SUM(s.total_amount), 0)::numeric(12,2) AS revenue,
-       COUNT(DISTINCT s.id)::int AS sales_count,
-       COALESCE(SUM(si.quantity), 0)::int AS items_sold
-     FROM sales s
-     LEFT JOIN sale_items si ON si.sale_id = s.id
-     ${where}
-     GROUP BY TO_CHAR(s.created_at, 'YYYY-MM-DD')
+    `WITH daily_gross AS (
+       SELECT
+         TO_CHAR(s.created_at, 'YYYY-MM-DD') AS date,
+         COALESCE(SUM(si.subtotal), 0)::numeric(12,2) AS gross_revenue,
+         COUNT(DISTINCT s.id)::int AS sales_count,
+         COALESCE(SUM(si.quantity), 0)::int AS items_sold
+       FROM sales s
+       JOIN sale_items si ON si.sale_id = s.id
+       ${saleWhere}
+       GROUP BY TO_CHAR(s.created_at, 'YYYY-MM-DD')
+     ),
+     daily_refunds AS (
+       SELECT
+         TO_CHAR(r.created_at, 'YYYY-MM-DD') AS date,
+         COALESCE(SUM(r.refund_amount), 0)::numeric(12,2) AS refunded
+       FROM returns r
+       ${returnWhere}
+       GROUP BY TO_CHAR(r.created_at, 'YYYY-MM-DD')
+     )
+     SELECT
+       COALESCE(g.date, rf.date) AS date,
+       COALESCE(g.gross_revenue, 0)::numeric(12,2) AS gross_revenue,
+       COALESCE(rf.refunded, 0)::numeric(12,2) AS refunded,
+       (COALESCE(g.gross_revenue, 0) - COALESCE(rf.refunded, 0))::numeric(12,2) AS revenue,
+       COALESCE(g.sales_count, 0)::int AS sales_count,
+       COALESCE(g.items_sold, 0)::int AS items_sold
+     FROM daily_gross g
+     FULL OUTER JOIN daily_refunds rf ON rf.date = g.date
      ORDER BY date ASC`,
-    values
+    allValues
   );
   return rows;
 }
@@ -360,15 +468,33 @@ async function myReport(userId, filters = {}) {
 
   async function bucketSummary(dateFrom, dateTo) {
     const { rows } = await pool.query(
-      `SELECT
-         COUNT(DISTINCT s.id)::int                        AS sales_count,
-         COALESCE(SUM(si.quantity), 0)::int               AS items_sold,
-         COALESCE(SUM(s.total_amount), 0)::numeric(12,2) AS total_revenue
-       FROM sales s
-       LEFT JOIN sale_items si ON si.sale_id = s.id
-       WHERE s.sold_by = $1
-         AND s.created_at >= $2
-         AND s.created_at <= $3`,
+      `WITH gross AS (
+         SELECT
+           COUNT(DISTINCT s.id)::int                          AS sales_count,
+           COALESCE(SUM(si.quantity), 0)::int                 AS items_sold,
+           COALESCE(SUM(si.subtotal), 0)::numeric(12,2)       AS gross_revenue
+         FROM sales s
+         JOIN sale_items si ON si.sale_id = s.id
+         WHERE s.sold_by = $1
+           AND s.created_at >= $2
+           AND s.created_at <= $3
+       ),
+       refunded AS (
+         SELECT COALESCE(SUM(r.refund_amount), 0)::numeric(12,2) AS total_refunded
+         FROM returns r
+         JOIN sales s ON s.id = r.sale_id
+         WHERE s.sold_by = $1
+           AND r.created_at >= $2
+           AND r.created_at <= $3
+       )
+       SELECT
+         gross.sales_count,
+         gross.items_sold,
+         gross.gross_revenue,
+         refunded.total_refunded,
+         (gross.gross_revenue - refunded.total_refunded)::numeric(12,2) AS net_revenue,
+         (gross.gross_revenue - refunded.total_refunded)::numeric(12,2) AS total_revenue
+       FROM gross, refunded`,
       [userId, dateFrom, dateTo]
     );
     return rows[0];

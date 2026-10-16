@@ -8,6 +8,11 @@ const ctrl       = require('./sales.controller');
 const router = Router();
 
 router.get('/',    authorize('owner', 'cashier'), ctrl.list);
+router.get(
+  '/open-for-product/:productId',
+  authorize('owner', 'cashier', 'sales'),
+  ctrl.openForProduct
+);
 router.get('/:id', ctrl.getOne);
 
 router.post(
