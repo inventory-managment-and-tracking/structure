@@ -9,7 +9,10 @@ const pool   = require('../../config/db');
  */
 async function generateQR(productId, { copies, print_method }, userId) {
   const { rows } = await pool.query(
-    'SELECT id, name, sku FROM products WHERE id = $1 AND is_active = TRUE',
+    `SELECT p.id, p.name, p.sku, c.name AS category_name
+     FROM products p
+     LEFT JOIN categories c ON c.id = p.category_id
+     WHERE p.id = $1 AND p.is_active = TRUE`,
     [productId]
   );
   if (!rows.length) {
@@ -47,9 +50,10 @@ async function generateQR(productId, { copies, print_method }, userId) {
 
   return {
     product: {
-      id:   product.id,
-      name: product.name,
-      sku:  product.sku,
+      id:            product.id,
+      name:          product.name,
+      sku:           product.sku,
+      category_name: product.category_name || null,
     },
     print_method: method,
     copies:       count,

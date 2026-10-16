@@ -542,6 +542,7 @@ export default function ProductList({ token, userRole, addToCart }) {
       await printQrLabelViaBluetooth({
         sku: activeProduct.sku,
         name: activeProduct.name,
+        category: activeProduct.category_name || activeProduct.category || '',
         qrImage: generatedQr,
         copies: printCopies,
         forceSelect
@@ -569,11 +570,17 @@ export default function ProductList({ token, userRole, addToCart }) {
     const frameWindow = iframe.contentWindow;
     const doc = iframe.contentDocument || frameWindow.document;
 
+    const catText = activeProduct.category_name || activeProduct.category || '';
+    const categoryHtml = catText
+      ? `<div class="prod-cat">${catText}</div>`
+      : '';
+
     const labelsHtml = Array.from({ length: printCopies }, () => `
   <div class="label-wrap">
     <img src="${generatedQr}" class="qr-img" alt="QR" />
     <div class="text-col">
       <div class="sku-code">${activeProduct.sku}</div>
+      ${categoryHtml}
       <div class="prod-name">${activeProduct.name}</div>
     </div>
   </div>`).join('');
@@ -606,7 +613,7 @@ export default function ProductList({ token, userRole, addToCart }) {
       align-items: center;
       width: 50mm;
       height: 25mm;
-      padding: 2mm 3mm;
+      padding: 1.5mm 3mm;
       page-break-after: always;
       break-after: page;
       overflow: hidden;
@@ -621,23 +628,36 @@ export default function ProductList({ token, userRole, addToCart }) {
     .text-col {
       display: flex;
       flex-direction: column;
-      justify-content: center;
+      justify-content: flex-start;
+      padding-top: 0.6mm;
       overflow: hidden;
       flex-grow: 1;
     }
     .sku-code {
-      font-size: 14px;
+      font-size: 13px;
       font-weight: 900;
       letter-spacing: 0.3px;
-      line-height: 1.2;
+      line-height: 1.15;
       white-space: nowrap;
     }
+    .prod-cat {
+      font-size: 10px;
+      font-weight: 700;
+      color: #333333;
+      text-transform: uppercase;
+      letter-spacing: 0.4px;
+      margin-top: 2px;
+      line-height: 1.1;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
     .prod-name {
-      font-size: 14px;
+      font-size: 13px;
       font-weight: 800;
-      color: #000;
-      margin-top: 4px;
-      line-height: 1.2;
+      color: #000000;
+      margin-top: 3px;
+      line-height: 1.15;
       word-break: break-word;
     }
   </style>
@@ -759,12 +779,12 @@ ${labelsHtml}
                   return (
                     <tr key={p.id}>
                       <td>
-                        <div style={{ fontWeight: '600' }}>{p.name}</div>
+                        <div style={{ fontWeight: '600', fontSize: '18px' }}>{p.name}</div>
                         <div style={{ fontSize: '11px', color: 'var(--text-dim)' }}>{p.supplier_name || 'No vendor'}</div>
                       </td>
                       <td className="mono" style={{ fontSize: '12px', fontWeight: '500' }}>{p.sku}</td>
                       <td>
-                        <span className="badge-ui gray">{p.category_name || 'General'}</span>
+                        <span className="badge-ui gray" style={{ fontSize: '14px' }}>{p.category_name || 'General'}</span>
                       </td>
                       <td style={{ fontSize: '13px' }}>
                         {p.size || '—'} / {p.color || '—'}
@@ -863,7 +883,7 @@ ${labelsHtml}
                     <div className="inventory-card-name">{p.name}</div>
                     <div className="inventory-card-sku mono">{p.sku}</div>
                   </div>
-                  <span className="badge-ui gray">{p.category_name || 'General'}</span>
+                  <span className="badge-ui gray" style={{ fontSize: '14px' }}>{p.category_name || 'General'}</span>
                 </div>
                 <div className="inventory-card-meta">
                   <span>{p.size || '—'} / {p.color || '—'}</span>
@@ -1394,14 +1414,19 @@ ${labelsHtml}
               <button onClick={() => setShowQrModal(false)} className="modal-close-btn"><X size={18} /></button>
             </div>
             
-            <div className="qr-preview-wrapper animate-fade" style={{ display: 'flex', flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: '14px', padding: '14px', border: '1px dashed var(--border-color)', borderRadius: '10px', background: '#ffffff', color: '#000000', margin: '16px auto', maxWidth: '320px' }}>
+            <div className="qr-preview-wrapper animate-fade" style={{ display: 'flex', flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: '14px', padding: '12px 14px', border: '1px dashed var(--border-color)', borderRadius: '10px', background: '#ffffff', color: '#000000', margin: '16px auto', maxWidth: '320px' }}>
               <div className="qr-image-frame" style={{ width: '80px', height: '80px', flexShrink: 0, margin: 0, padding: 0, border: 'none' }}>
                 <img src={generatedQr} alt={`QR Code for ${activeProduct.sku}`} style={{ width: '100%', height: '100%', objectFit: 'contain' }} />
               </div>
-              <div style={{ textAlign: 'left', overflow: 'hidden', flex: 1 }}>
-                <div style={{ fontSize: '15px', fontWeight: '900', color: '#000000', letterSpacing: '0.3px', whiteSpace: 'nowrap' }}>{activeProduct.sku}</div>
-                <div style={{ fontSize: '15px', fontWeight: '800', color: '#000000', marginTop: '4px', wordBreak: 'break-word', lineHeight: '1.2' }}>{activeProduct.name}</div>
-                <div style={{ fontSize: '10px', color: '#777777', marginTop: '4px', fontStyle: 'italic' }}>50 × 25 mm Sticker</div>
+              <div style={{ textAlign: 'left', overflow: 'hidden', flex: 1, paddingTop: '1px' }}>
+                <div style={{ fontSize: '14px', fontWeight: '900', color: '#000000', letterSpacing: '0.3px', whiteSpace: 'nowrap' }}>{activeProduct.sku}</div>
+                {(activeProduct.category_name || activeProduct.category) && (
+                  <div style={{ fontSize: '10px', fontWeight: '700', color: '#444444', textTransform: 'uppercase', letterSpacing: '0.4px', marginTop: '2px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                    {activeProduct.category_name || activeProduct.category}
+                  </div>
+                )}
+                <div style={{ fontSize: '14px', fontWeight: '800', color: '#000000', marginTop: '3px', wordBreak: 'break-word', lineHeight: '1.2' }}>{activeProduct.name}</div>
+                <div style={{ fontSize: '9px', color: '#777777', marginTop: '4px', fontStyle: 'italic' }}>50 × 25 mm Sticker</div>
               </div>
             </div>
 

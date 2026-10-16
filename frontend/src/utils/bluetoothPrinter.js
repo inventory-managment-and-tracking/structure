@@ -111,23 +111,31 @@ function nativeQrCommands(text) {
   ];
 }
 
-function textBlockRaster({ sku, name }) {
+function textBlockRaster({ sku, name, category }) {
   const measure = document.createElement('canvas').getContext('2d');
   if (!measure) throw new Error('Canvas 2D context not available');
 
   const skuSize = cssPx(13);
+  const catSize = cssPx(9);
   const nameSize = cssPx(11);
   const skuLineH = Math.round(skuSize * 1.2);
+  const catLineH = Math.round(catSize * 1.2);
   const nameLineH = Math.round(nameSize * 1.2);
 
   measure.font = `800 ${skuSize}px ${LABEL_FONT}`;
   const skuLines = wrapText(measure, sku, HEAD_WIDTH, true);
+
+  const catText = String(category || '').trim();
+  measure.font = `700 ${catSize}px ${LABEL_FONT}`;
+  const catLines = catText ? wrapText(measure, catText, HEAD_WIDTH, false).slice(0, 1) : [];
+
   measure.font = `600 ${nameSize}px ${LABEL_FONT}`;
   const nameLines = wrapText(measure, name, HEAD_WIDTH, false);
 
-  const gapAfterQr = 6;
+  const gapAfterQr = 5;
+  const beforeCat = catLines.length ? cssPx(1) : 0;
   const beforeName = cssPx(1);
-  const height = gapAfterQr + (skuLines.length * skuLineH) + beforeName + (nameLines.length * nameLineH);
+  const height = gapAfterQr + (skuLines.length * skuLineH) + beforeCat + (catLines.length * catLineH) + beforeName + (nameLines.length * nameLineH);
 
   const canvas = document.createElement('canvas');
   canvas.width = HEAD_WIDTH;
@@ -148,8 +156,18 @@ function textBlockRaster({ sku, name }) {
     y += skuLineH;
   }
 
+  if (catLines.length) {
+    y += beforeCat;
+    ctx.fillStyle = '#333333';
+    ctx.font = `700 ${catSize}px ${LABEL_FONT}`;
+    for (const line of catLines) {
+      ctx.fillText(line, HEAD_WIDTH / 2, y);
+      y += catLineH;
+    }
+  }
+
   y += beforeName;
-  ctx.fillStyle = '#222222';
+  ctx.fillStyle = '#000000';
   ctx.font = `600 ${nameSize}px ${LABEL_FONT}`;
   for (const line of nameLines) {
     ctx.fillText(line, HEAD_WIDTH / 2, y);
@@ -172,9 +190,9 @@ function loadImage(src) {
 /**
  * Renders a 50mm x 25mm label in side-by-side layout:
  * Left: 20x20mm QR Code
- * Right: SKU and Product Name
+ * Right: SKU (top, pushed up ~1mm) -> Category (middle) -> Product Name (under category)
  */
-async function sideBySideLabelRaster({ sku, name, qrImage }) {
+async function sideBySideLabelRaster({ sku, name, category, qrImage }) {
   const CANVAS_W = 384;
   const CANVAS_H = 196; // ~24.5mm at 8 dots/mm, fits inside 25mm sticker
 
@@ -202,33 +220,50 @@ async function sideBySideLabelRaster({ sku, name, qrImage }) {
     }
   }
 
-  // Right: SKU & Product Name
+  // Right: SKU, Category & Product Name
   const textX = 168;
   const maxTextW = CANVAS_W - textX - 6; // ~210 dots wide
 
   ctx.textAlign = 'left';
   ctx.textBaseline = 'top';
 
-  // Auto-fit SKU on a single line so it NEVER wraps
-  let skuSize = 20;
+  // 1. Auto-fit SKU on a single line so it NEVER wraps
+  let skuSize = 18;
   ctx.font = `900 ${skuSize}px ${LABEL_FONT}`;
-  while (skuSize > 13 && ctx.measureText(sku).width > maxTextW) {
+  while (skuSize > 12 && ctx.measureText(sku).width > maxTextW) {
     skuSize -= 1;
     ctx.font = `900 ${skuSize}px ${LABEL_FONT}`;
   }
-
-  // Make Product Name as large as the SKU
-  const nameSize = skuSize;
-  const skuLineH = skuSize + 4;
-  const nameLineH = nameSize + 4;
-
+  const skuLineH = skuSize + 3;
   const skuLines = [sku]; // Single line guaranteed
-  ctx.font = `800 ${nameSize}px ${LABEL_FONT}`;
-  const nameLines = wrapText(ctx, name, maxTextW, false);
 
-  const textBlockH = (skuLines.length * skuLineH) + 8 + (nameLines.length * nameLineH);
-  // Vertically align the text block to the center of the QR code
-  let textY = qrY + Math.max(0, Math.round((qrSize - textBlockH) / 2));
+  // 2. Category (middle, single line)
+  const catText = String(category || '').trim();
+  let catLines = [];
+  const catSize = 11;
+  const catLineH = catSize + 2;
+  if (catText) {
+    ctx.font = `700 ${catSize}px ${LABEL_FONT}`;
+    catLines = wrapText(ctx, catText, maxTextW, false).slice(0, 1);
+  }
+
+  // 3. Product Name (placed under the category)
+  let nameSize = Math.min(skuSize, 15);
+  ctx.font = `800 ${nameSize}px ${LABEL_FONT}`;
+  let nameLines = wrapText(ctx, name, maxTextW, false);
+  if (nameLines.length > 2 && nameSize > 13) {
+    nameSize = 13;
+    ctx.font = `800 ${nameSize}px ${LABEL_FONT}`;
+    nameLines = wrapText(ctx, name, maxTextW, false);
+  }
+  const nameLineH = nameSize + 3;
+
+  const catBlockH = catLines.length > 0 ? (3 + catLineH) : 0;
+  const textBlockH = (skuLines.length * skuLineH) + catBlockH + 4 + (nameLines.length * nameLineH);
+
+  // Push SKU placement up by ~1mm (approx 8-10 dots) compared to center,
+  // creating well-deserved room below for the Category and Product Name to be printed.
+  let textY = Math.max(14, qrY + Math.round((qrSize - textBlockH) / 2) - 10);
 
   // Draw SKU
   ctx.fillStyle = '#000000';
@@ -238,8 +273,19 @@ async function sideBySideLabelRaster({ sku, name, qrImage }) {
     textY += skuLineH;
   }
 
-  // Draw Name (same size as SKU)
-  textY += 8;
+  // Draw Category (if present)
+  if (catLines.length > 0) {
+    textY += 3;
+    ctx.fillStyle = '#222222';
+    ctx.font = `700 ${catSize}px ${LABEL_FONT}`;
+    for (const line of catLines) {
+      ctx.fillText(line, textX, textY);
+      textY += catLineH;
+    }
+  }
+
+  // Draw Product Name (under the category)
+  textY += 4;
   ctx.fillStyle = '#000000';
   ctx.font = `800 ${nameSize}px ${LABEL_FONT}`;
   for (const line of nameLines) {
@@ -254,9 +300,9 @@ async function sideBySideLabelRaster({ sku, name, qrImage }) {
  * Builds a single 50x25mm tag.
  * If qrImage is provided, uses the side-by-side landscape format.
  */
-export async function buildSingleLabelEscPos({ sku, name, qrImage }) {
+export async function buildSingleLabelEscPos({ sku, name, category, qrImage }) {
   if (qrImage) {
-    const raster = await sideBySideLabelRaster({ sku, name, qrImage });
+    const raster = await sideBySideLabelRaster({ sku, name, category, qrImage });
     return [
       0x1B, 0x40,        // initialize
       0x1B, 0x61, 0x01,  // center
@@ -269,7 +315,7 @@ export async function buildSingleLabelEscPos({ sku, name, qrImage }) {
     0x1B, 0x40,
     0x1B, 0x61, 0x01,
     ...nativeQrCommands(sku),
-    ...textBlockRaster({ sku, name }),
+    ...textBlockRaster({ sku, name, category }),
     0x1B, 0x64, 0x01,
   ];
 }
@@ -277,8 +323,8 @@ export async function buildSingleLabelEscPos({ sku, name, qrImage }) {
 /**
  * Builds the full 58mm tag payload.
  */
-export async function labelToEscPos({ sku, name, qrImage, copies = 1 }) {
-  const singleLabel = await buildSingleLabelEscPos({ sku, name, qrImage });
+export async function labelToEscPos({ sku, name, category, qrImage, copies = 1 }) {
+  const singleLabel = await buildSingleLabelEscPos({ sku, name, category, qrImage });
   const fullBytes = [];
   const count = Math.max(1, parseInt(copies, 10) || 1);
   for (let i = 0; i < count; i++) {
@@ -434,10 +480,11 @@ async function getOrSelectPrinter(forceSelect = false) {
  * @param {Object} params
  * @param {string} params.sku - Product SKU code (encoded into the QR by the printer)
  * @param {string} params.name - Product Name
+ * @param {string} [params.category] - Product Category
  * @param {number} [params.copies=1] - Number of copies to print
  * @param {boolean} [params.forceSelect=false] - Force showing the device chooser popup
  */
-export async function printQrLabelViaBluetooth({ sku, name, qrImage, copies = 1, forceSelect = false }) {
+export async function printQrLabelViaBluetooth({ sku, name, category, qrImage, copies = 1, forceSelect = false }) {
   if (typeof navigator === 'undefined' || !navigator.bluetooth) {
     throw new Error('Web Bluetooth is not supported on this browser. Please use Chrome, Edge, or Samsung Internet on Android/PC.');
   }
@@ -478,7 +525,7 @@ export async function printQrLabelViaBluetooth({ sku, name, qrImage, copies = 1,
     }
 
     // 3. Build single label binary payload (side-by-side if qrImage passed)
-    const singleLabelBytes = new Uint8Array(await buildSingleLabelEscPos({ sku, name, qrImage }));
+    const singleLabelBytes = new Uint8Array(await buildSingleLabelEscPos({ sku, name, category, qrImage }));
 
     // 4. Send each copy sequentially with a brief pause for smooth continuous printing
     for (let i = 0; i < copyCount; i++) {
