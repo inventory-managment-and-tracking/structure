@@ -18,6 +18,7 @@ const returnsRoutes    = require('./modules/returns/returns.routes');
 const alertsRoutes     = require('./modules/alerts/alerts.routes');
 const qrRoutes         = require('./modules/qr/qr.routes');
 const reportsRoutes    = require('./modules/reports/reports.routes');
+const deployRoutes     = require('./modules/deploy/deploy.routes');
 
 const { authenticate }  = require('./middleware/auth');
 const errorHandler      = require('./middleware/errorHandler');
@@ -41,7 +42,11 @@ app.use(cors());
 app.use(morgan(process.env.NODE_ENV === 'production' ? 'combined' : 'dev'));
 
 // ── Body parsing ──────────────────────────────────────────────
-app.use(express.json());
+app.use(express.json({
+  verify: (req, _res, buf) => {
+    req.rawBody = buf;
+  },
+}));
 app.use(express.urlencoded({ extended: true }));
 
 // ── Health check (before rate limiter when API_BASE is empty) ─
@@ -97,6 +102,7 @@ if (API_BASE) {
 
 // ── Public routes (no JWT required) ───────────────────────────
 app.use(apiPath('/auth'), authRoutes);
+app.use(apiPath('/deploy'), deployRoutes);
 
 // ── Protected routes (JWT required for all below) ─────────────
 app.use(API_BASE || '/', authenticate);

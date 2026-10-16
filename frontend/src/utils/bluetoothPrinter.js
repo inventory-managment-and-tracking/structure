@@ -159,24 +159,116 @@ function textBlockRaster({ sku, name }) {
   return canvasToRaster(canvas);
 }
 
+function loadImage(src) {
+  return new Promise((resolve, reject) => {
+    const img = new Image();
+    img.crossOrigin = 'anonymous';
+    img.onload = () => resolve(img);
+    img.onerror = () => reject(new Error('Failed to load QR image'));
+    img.src = src;
+  });
+}
+
 /**
- * Builds a single 58mm tag: printer-drawn QR at the top, then SKU and name.
+ * Renders a 50mm x 25mm label in side-by-side layout:
+ * Left: 20x20mm QR Code
+ * Right: SKU and Product Name
  */
-export function buildSingleLabelEscPos({ sku, name }) {
+async function sideBySideLabelRaster({ sku, name, qrImage }) {
+  const CANVAS_W = 384;
+  const CANVAS_H = 184; // ~23mm at 8 dots/mm, fits inside 25mm sticker
+
+  const canvas = document.createElement('canvas');
+  canvas.width = CANVAS_W;
+  canvas.height = CANVAS_H;
+  const ctx = canvas.getContext('2d');
+  if (!ctx) throw new Error('Canvas 2D context not available');
+
+  ctx.fillStyle = '#ffffff';
+  ctx.fillRect(0, 0, CANVAS_W, CANVAS_H);
+
+  // Left: 156x156 dots (~19.5mm x 19.5mm)
+  if (qrImage) {
+    try {
+      const qrImg = await loadImage(qrImage);
+      const qrSize = 156;
+      const qrX = 10;
+      const qrY = Math.round((CANVAS_H - qrSize) / 2);
+      ctx.drawImage(qrImg, qrX, qrY, qrSize, qrSize);
+    } catch (e) {
+      console.warn('Could not load QR image on canvas:', e);
+    }
+  }
+
+  // Right: SKU & Product Name
+  const textX = 178;
+  const maxTextW = CANVAS_W - textX - 8; // ~198 dots wide
+
+  ctx.textAlign = 'left';
+  ctx.textBaseline = 'top';
+
+  const skuSize = 15;
+  const nameSize = 14;
+  const skuLineH = 19;
+  const nameLineH = 18;
+
+  ctx.font = `800 ${skuSize}px ${LABEL_FONT}`;
+  const skuLines = wrapText(ctx, sku, maxTextW, true);
+  ctx.font = `600 ${nameSize}px ${LABEL_FONT}`;
+  const nameLines = wrapText(ctx, name, maxTextW, false);
+
+  const textBlockH = (skuLines.length * skuLineH) + 6 + (nameLines.length * nameLineH);
+  let textY = Math.max(10, Math.round((CANVAS_H - textBlockH) / 2));
+
+  // Draw SKU
+  ctx.fillStyle = '#000000';
+  ctx.font = `800 ${skuSize}px ${LABEL_FONT}`;
+  for (const line of skuLines) {
+    ctx.fillText(line, textX, textY);
+    textY += skuLineH;
+  }
+
+  // Draw Name
+  textY += 6;
+  ctx.fillStyle = '#222222';
+  ctx.font = `600 ${nameSize}px ${LABEL_FONT}`;
+  for (const line of nameLines) {
+    ctx.fillText(line, textX, textY);
+    textY += nameLineH;
+  }
+
+  return canvasToRaster(canvas);
+}
+
+/**
+ * Builds a single 50x25mm tag.
+ * If qrImage is provided, uses the side-by-side landscape format.
+ */
+export async function buildSingleLabelEscPos({ sku, name, qrImage }) {
+  if (qrImage) {
+    const raster = await sideBySideLabelRaster({ sku, name, qrImage });
+    return [
+      0x1B, 0x40,        // initialize
+      0x1B, 0x61, 0x01,  // center
+      ...raster,
+      0x1B, 0x64, 0x01,  // feed 1 line (matches pre-cut sticker gap)
+    ];
+  }
+
   return [
-    0x1B, 0x40,             // initialize
-    0x1B, 0x61, 0x01,       // center
+    0x1B, 0x40,
+    0x1B, 0x61, 0x01,
     ...nativeQrCommands(sku),
     ...textBlockRaster({ sku, name }),
-    0x1B, 0x64, TEAR_FEED_LINES,
+    0x1B, 0x64, 0x01,
   ];
 }
 
 /**
  * Builds the full 58mm tag payload.
  */
-export function labelToEscPos({ sku, name, copies = 1 }) {
-  const singleLabel = buildSingleLabelEscPos({ sku, name });
+export async function labelToEscPos({ sku, name, qrImage, copies = 1 }) {
+  const singleLabel = await buildSingleLabelEscPos({ sku, name, qrImage });
   const fullBytes = [];
   const count = Math.max(1, parseInt(copies, 10) || 1);
   for (let i = 0; i < count; i++) {
@@ -335,7 +427,7 @@ async function getOrSelectPrinter(forceSelect = false) {
  * @param {number} [params.copies=1] - Number of copies to print
  * @param {boolean} [params.forceSelect=false] - Force showing the device chooser popup
  */
-export async function printQrLabelViaBluetooth({ sku, name, copies = 1, forceSelect = false }) {
+export async function printQrLabelViaBluetooth({ sku, name, qrImage, copies = 1, forceSelect = false }) {
   if (typeof navigator === 'undefined' || !navigator.bluetooth) {
     throw new Error('Web Bluetooth is not supported on this browser. Please use Chrome, Edge, or Samsung Internet on Android/PC.');
   }
@@ -375,8 +467,8 @@ export async function printQrLabelViaBluetooth({ sku, name, copies = 1, forceSel
       throw new Error('No writable printing characteristic found on printer.');
     }
 
-    // 3. Build single label binary payload
-    const singleLabelBytes = new Uint8Array(buildSingleLabelEscPos({ sku, name }));
+    // 3. Build single label binary payload (side-by-side if qrImage passed)
+    const singleLabelBytes = new Uint8Array(await buildSingleLabelEscPos({ sku, name, qrImage }));
 
     // 4. Send each copy sequentially with a brief pause for smooth continuous printing
     for (let i = 0; i < copyCount; i++) {
