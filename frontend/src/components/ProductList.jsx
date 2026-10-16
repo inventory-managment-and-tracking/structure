@@ -630,13 +630,13 @@ export default function ProductList({ token, userRole, addToCart }) {
       font-weight: 900;
       letter-spacing: 0.3px;
       line-height: 1.2;
-      word-break: break-all;
+      white-space: nowrap;
     }
     .prod-name {
-      font-size: 12px;
-      font-weight: 700;
-      color: #111;
-      margin-top: 3px;
+      font-size: 14px;
+      font-weight: 800;
+      color: #000;
+      margin-top: 4px;
       line-height: 1.2;
       word-break: break-word;
     }
@@ -1399,8 +1399,8 @@ ${labelsHtml}
                 <img src={generatedQr} alt={`QR Code for ${activeProduct.sku}`} style={{ width: '100%', height: '100%', objectFit: 'contain' }} />
               </div>
               <div style={{ textAlign: 'left', overflow: 'hidden', flex: 1 }}>
-                <div style={{ fontSize: '15px', fontWeight: '900', color: '#000000', letterSpacing: '0.3px', wordBreak: 'break-all' }}>{activeProduct.sku}</div>
-                <div style={{ fontSize: '13px', fontWeight: '700', color: '#222222', marginTop: '3px', wordBreak: 'break-word', lineHeight: '1.2' }}>{activeProduct.name}</div>
+                <div style={{ fontSize: '15px', fontWeight: '900', color: '#000000', letterSpacing: '0.3px', whiteSpace: 'nowrap' }}>{activeProduct.sku}</div>
+                <div style={{ fontSize: '15px', fontWeight: '800', color: '#000000', marginTop: '4px', wordBreak: 'break-word', lineHeight: '1.2' }}>{activeProduct.name}</div>
                 <div style={{ fontSize: '10px', color: '#777777', marginTop: '4px', fontStyle: 'italic' }}>50 × 25 mm Sticker</div>
               </div>
             </div>
