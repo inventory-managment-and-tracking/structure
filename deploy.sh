@@ -34,12 +34,13 @@ echo "[2/4] Updating backend dependencies..."
 cd "$REPO_DIR/backend"
 npm install --production
 
-# 3. Reload backend in PM2 (zero-downtime)
+# 3. Reload backend in PM2 (zero-downtime with updated env)
 echo "[3/4] Reloading PM2 process 'clothtrack-backend'..."
+cd "$REPO_DIR/backend"
 if pm2 list | grep -q "clothtrack-backend"; then
-  pm2 reload clothtrack-backend
+  pm2 restart clothtrack-backend --update-env
 else
-  pm2 start server.js --name clothtrack-backend
+  pm2 start server.js --name clothtrack-backend --update-env
 fi
 pm2 save
 
