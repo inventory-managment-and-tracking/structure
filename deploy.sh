@@ -35,8 +35,15 @@ echo "[2/4] Updating backend dependencies..."
 cd "$REPO_DIR/backend"
 npm install --production
 
-# 3. Reload backend in PM2 (zero-downtime with updated env)
-echo "[3/4] Reloading PM2 process 'clothtrack-backend'..."
+# 3. Build frontend application
+echo "[3/4] Building frontend..."
+cd "$REPO_DIR/frontend"
+npm install
+npm run build
+chmod -R o+rx "$REPO_DIR/frontend/dist"
+
+# 4. Reload backend in PM2 (at the very end so restarts cannot interrupt the build)
+echo "[4/4] Reloading PM2 process 'clothtrack-backend'..."
 cd "$REPO_DIR/backend"
 if pm2 list | grep -q "clothtrack-backend"; then
   pm2 restart clothtrack-backend --update-env
@@ -44,13 +51,6 @@ else
   pm2 start server.js --name clothtrack-backend --update-env
 fi
 pm2 save
-
-# 4. Build frontend application
-echo "[4/4] Building frontend..."
-cd "$REPO_DIR/frontend"
-npm install
-npm run build
-chmod -R o+rx "$REPO_DIR/frontend/dist"
 
 echo "=================================================="
 echo "Deployment completed successfully: $(date '+%Y-%m-%d %H:%M:%S')"

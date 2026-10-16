@@ -94,8 +94,8 @@ router.post('/webhook', (req, res) => {
 
   console.log(`[DEPLOY] Triggering deploy script: ${deployScript}`);
 
-  // Spawn detached process so it continues even when PM2 restarts backend
-  const child = spawn('/bin/bash', [deployScript], {
+  // Spawn detached process with nohup so PM2 reload cannot kill it
+  const child = spawn('nohup', ['/bin/bash', deployScript], {
     detached: true,
     stdio: 'ignore',
   });
