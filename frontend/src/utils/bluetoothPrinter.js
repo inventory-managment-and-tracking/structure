@@ -306,7 +306,9 @@ export async function buildSingleLabelEscPos({ sku, name, category, qrImage }) {
       0x1B, 0x40,        // initialize
       0x1B, 0x61, 0x01,  // center
       ...raster,
-      0x1D, 0x0C,        // GS FF: triggers hardware optical gap sensor in Label Mode to feed to exact cut line
+      0x1B, 0x33, 14,    // ESC 3 14: set custom line feed to exact 14-dot gap (1.75mm)
+      0x0A,              // LF: feed 1 line of 14 dots (total cycle = 196 + 14 = 210 dots)
+      0x1B, 0x32,        // ESC 2: reset line spacing to default
     ];
   }
 
@@ -315,7 +317,9 @@ export async function buildSingleLabelEscPos({ sku, name, category, qrImage }) {
     0x1B, 0x61, 0x01,
     ...nativeQrCommands(sku),
     ...textBlockRaster({ sku, name, category }),
-    0x1D, 0x0C,
+    0x1B, 0x33, 14,
+    0x0A,
+    0x1B, 0x32,
   ];
 }
 
