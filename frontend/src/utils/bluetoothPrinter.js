@@ -306,8 +306,8 @@ export async function buildSingleLabelEscPos({ sku, name, category, qrImage }) {
       0x1B, 0x40,        // initialize
       0x1B, 0x61, 0x01,  // center
       ...raster,
-      0x1B, 0x33, 14,    // ESC 3 14: set custom line feed to exact 14-dot gap (1.75mm)
-      0x0A,              // LF: feed 1 line of 14 dots (total cycle = 196 + 14 = 210 dots)
+      0x1B, 0x33, 22,    // ESC 3 22: exact 22-dot feed to land precisely in gap (total 218 dots pitch)
+      0x0A,              // LF: feed 1 line of 22 dots
       0x1B, 0x32,        // ESC 2: reset line spacing to default
     ];
   }
@@ -317,7 +317,7 @@ export async function buildSingleLabelEscPos({ sku, name, category, qrImage }) {
     0x1B, 0x61, 0x01,
     ...nativeQrCommands(sku),
     ...textBlockRaster({ sku, name, category }),
-    0x1B, 0x33, 14,
+    0x1B, 0x33, 22,
     0x0A,
     0x1B, 0x32,
   ];
@@ -339,10 +339,14 @@ export async function labelToEscPos({ sku, name, category, qrImage, copies = 1 }
 // Module-level timer to prevent rapid re-clicks from severing connections
 let disconnectTimer = null;
 
-async function writePrinterBytes(characteristic, bytes, chunkSize = 100) {
-  const write = characteristic.properties.writeWithoutResponse
+async function writePrinterBytes(characteristic, bytes, chunkSize = 120) {
+  const canWriteWithoutResponse = !!characteristic.properties.writeWithoutResponse;
+  const write = canWriteWithoutResponse
     ? (chunk) => characteristic.writeValueWithoutResponse(chunk)
     : (chunk) => characteristic.writeValue(chunk);
+
+  // 3ms delay keeps BLE UART buffer full without starvation so printing is one continuous motion
+  const delayMs = canWriteWithoutResponse ? 3 : 0;
 
   for (let offset = 0; offset < bytes.length;) {
     const end = Math.min(offset + chunkSize, bytes.length);
@@ -350,11 +354,13 @@ async function writePrinterBytes(characteristic, bytes, chunkSize = 100) {
     try {
       await write(chunk);
       offset = end;
-      // 10ms throttle provides fluid motor feeding while protecting BLE UART buffer
-      await new Promise((resolve) => setTimeout(resolve, 10));
+      if (delayMs > 0) {
+        await new Promise((resolve) => setTimeout(resolve, delayMs));
+      }
     } catch (err) {
       if (chunkSize <= 20) throw err;
       chunkSize = 20;
+      await new Promise((resolve) => setTimeout(resolve, 15));
     }
   }
 }
