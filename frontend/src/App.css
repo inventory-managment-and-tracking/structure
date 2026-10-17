@@ -2114,10 +2114,10 @@
   bottom: 0;
   background: rgba(0, 0, 0, 0.75);
   display: flex;
-  align-items: flex-start;
+  align-items: center;
   justify-content: center;
   z-index: 1050;
-  padding: 40px 20px;
+  padding: 20px;
   backdrop-filter: blur(8px);
   overflow-y: auto;
 }
@@ -2125,6 +2125,7 @@
 .modal-content {
   width: 100%;
   max-width: 520px;
+  margin: auto;
   overflow-y: visible;
   padding: 32px;
   border-radius: var(--radius-lg);
