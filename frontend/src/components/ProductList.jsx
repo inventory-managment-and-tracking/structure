@@ -545,7 +545,7 @@ export default function ProductList({ token, userRole, addToCart }) {
         name: activeProduct.name,
         category: activeProduct.category_name || activeProduct.category || '',
         qrImage: generatedQr,
-        copies: Math.min(4, Math.max(1, printCopies)),
+        copies: Math.min(5, Math.max(1, printCopies)),
         forceSelect
       });
       const copyText = printCopies > 1 ? `${printCopies} labels` : 'QR label';
@@ -564,7 +564,7 @@ export default function ProductList({ token, userRole, addToCart }) {
     setIsTestingFeed(true);
     setBtError('');
     try {
-      await testBlankFeedViaBluetooth({ copies: Math.min(4, Math.max(1, printCopies)) });
+      await testBlankFeedViaBluetooth({ copies: Math.min(5, Math.max(1, printCopies)) });
       const copyText = printCopies > 1 ? `${printCopies} blank sticker cycles` : '1 blank sticker cycle';
       setToast({ show: true, message: `Advanced ${copyText} (zero ink)!` });
       setTimeout(() => setToast({ show: false, message: '' }), 3500);
@@ -1505,8 +1505,8 @@ ${labelsHtml}
                   </span>
                   <button
                     type="button"
-                    onClick={() => setPrintCopies(c => Math.min(4, c + 1))}
-                    disabled={printCopies >= 4}
+                    onClick={() => setPrintCopies(c => Math.min(5, c + 1))}
+                    disabled={printCopies >= 5}
                     style={{ 
                       width: '28px', 
                       height: '28px', 
@@ -1516,11 +1516,11 @@ ${labelsHtml}
                       background: 'var(--surface)', 
                       border: '1px solid var(--border-color)', 
                       borderRadius: '6px', 
-                      cursor: printCopies >= 4 ? 'not-allowed' : 'pointer', 
+                      cursor: printCopies >= 5 ? 'not-allowed' : 'pointer', 
                       fontSize: '16px', 
                       fontWeight: 'bold', 
                       color: 'var(--text-color)',
-                      opacity: printCopies >= 4 ? 0.4 : 1,
+                      opacity: printCopies >= 5 ? 0.4 : 1,
                       userSelect: 'none'
                     }}
                     aria-label="Increase copies"
@@ -1528,7 +1528,7 @@ ${labelsHtml}
                 </div>
               </div>
               <span style={{ fontSize: '10.5px', color: 'var(--text-dim)', fontStyle: 'italic', marginTop: '2px' }}>
-                Max 4 stickers per batch to maintain exact gap alignment
+                Max 5 stickers per batch to maintain exact gap alignment
               </span>
             </div>
 
