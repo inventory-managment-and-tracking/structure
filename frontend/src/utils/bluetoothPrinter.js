@@ -579,3 +579,80 @@ export async function printQrLabelViaBluetooth({ sku, name, category, qrImage, c
   }
 }
 
+/**
+ * Advances the printer motor by N label cycles (blank body + gap) with zero printing.
+ * Allows zero-waste calibration of roll pitch and multi-label feed drift from any device.
+ */
+export async function testBlankFeedViaBluetooth({ copies = 1, gapDots = 21, forceSelect = false } = {}) {
+  const { device, server } = await getOrSelectPrinter(forceSelect);
+  const copyCount = Math.max(1, parseInt(copies, 10) || 1);
+
+  if (disconnectTimer) {
+    clearTimeout(disconnectTimer);
+    disconnectTimer = null;
+  }
+
+  try {
+    const services = await server.getPrimaryServices();
+    let targetChar = null;
+    for (const service of services) {
+      try {
+        const chars = await service.getCharacteristics();
+        for (const char of chars) {
+          if (char.properties.write || char.properties.writeWithoutResponse) {
+            targetChar = char;
+            break;
+          }
+        }
+      } catch {
+        // continue
+      }
+      if (targetChar) break;
+    }
+
+    if (!targetChar) {
+      throw new Error('No writable printing characteristic found on printer.');
+    }
+
+    // 1 blank label cycle = 7 lines body (~200 dots) + gapDots line feed
+    const blankCycleBytes = new Uint8Array([
+      0x1B, 0x64, 7,        // 7 lines body (~200 dots)
+      0x1B, 0x33, gapDots,  // gap dots feed
+      0x0A,                 // feed gap
+      0x1B, 0x32            // reset line pitch
+    ]);
+
+    for (let i = 0; i < copyCount; i++) {
+      await writePrinterBytes(targetChar, blankCycleBytes, 100);
+      if (i < copyCount - 1) {
+        await new Promise((resolve) => setTimeout(resolve, 350));
+      }
+    }
+
+    if (device.id) {
+      try {
+        localStorage.setItem(LAST_PRINTER_KEY, device.id);
+        if (device.name) {
+          localStorage.setItem(LAST_PRINTER_NAME_KEY, device.name);
+        }
+      } catch {
+        // ignore
+      }
+    }
+
+    return true;
+  } finally {
+    const disconnectDelay = Math.max(3000, copyCount * 1200 + 1500);
+    disconnectTimer = setTimeout(() => {
+      try {
+        if (device.gatt && device.gatt.connected) {
+          device.gatt.disconnect();
+        }
+      } catch {
+        // ignore
+      }
+      disconnectTimer = null;
+    }, disconnectDelay);
+  }
+}
+

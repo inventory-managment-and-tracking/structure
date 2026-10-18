@@ -3,7 +3,7 @@ import { createPortal } from 'react-dom';
 import { Search, Plus, RefreshCw, Printer, Bluetooth, AlertTriangle, X, ArrowRightLeft, Pencil, Trash2 } from 'lucide-react';
 import { formatBirr } from '../utils/formatBirr';
 import { notifyInventoryChanged } from '../utils/inventoryEvents';
-import { printQrLabelViaBluetooth } from '../utils/bluetoothPrinter';
+import { printQrLabelViaBluetooth, testBlankFeedViaBluetooth } from '../utils/bluetoothPrinter';
 
 export default function ProductList({ token, userRole, addToCart }) {
   const [products, setProducts] = useState([]);
@@ -51,6 +51,7 @@ export default function ProductList({ token, userRole, addToCart }) {
 
   const [generatedQr, setGeneratedQr] = useState(null);
   const [isBtPrinting, setIsBtPrinting] = useState(false);
+  const [isTestingFeed, setIsTestingFeed] = useState(false);
   const [btError, setBtError] = useState('');
   const [printCopies, setPrintCopies] = useState(1);
 
@@ -556,6 +557,23 @@ export default function ProductList({ token, userRole, addToCart }) {
       }
     } finally {
       setIsBtPrinting(false);
+    }
+  };
+
+  const handleTestBlankFeed = async () => {
+    setIsTestingFeed(true);
+    setBtError('');
+    try {
+      await testBlankFeedViaBluetooth({ copies: printCopies });
+      const copyText = printCopies > 1 ? `${printCopies} blank sticker cycles` : '1 blank sticker cycle';
+      setToast({ show: true, message: `Advanced ${copyText} (zero ink)!` });
+      setTimeout(() => setToast({ show: false, message: '' }), 3500);
+    } catch (err) {
+      if (err.name !== 'NotFoundError') {
+        setBtError(err.message || 'Failed to connect to printer.');
+      }
+    } finally {
+      setIsTestingFeed(false);
     }
   };
 
@@ -1521,6 +1539,33 @@ ${labelsHtml}
               >
                 <Printer size={16} />
                 System Print (58mm Tag)
+              </button>
+
+              <button 
+                type="button"
+                onClick={handleTestBlankFeed}
+                disabled={isBtPrinting || isTestingFeed}
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  gap: '6px',
+                  background: 'transparent',
+                  border: '1px dashed var(--border-color)',
+                  borderRadius: 'var(--radius-md, 8px)',
+                  color: 'var(--text-color)',
+                  fontSize: '12px',
+                  fontWeight: '600',
+                  padding: '8px 12px',
+                  cursor: (isBtPrinting || isTestingFeed) ? 'not-allowed' : 'pointer',
+                  width: '100%',
+                  marginTop: '2px',
+                  opacity: (isBtPrinting || isTestingFeed) ? 0.6 : 1
+                }}
+                title="Test motor paper advance without printing any ink"
+              >
+                <RefreshCw size={14} className={isTestingFeed ? 'animate-spin' : ''} />
+                {isTestingFeed ? 'Advancing motor...' : `Test Blank Feed (${printCopies} ${printCopies > 1 ? 'stickers' : 'sticker'})`}
               </button>
 
               <button
