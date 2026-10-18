@@ -206,10 +206,10 @@ async function sideBySideLabelRaster({ sku, name, category, qrImage }) {
   ctx.fillRect(0, 0, CANVAS_W, CANVAS_H);
 
   // Left: 144x144 dots (18mm x 18mm)
-  // Shifted up to qrY=10 to eliminate top gap and center vertically on sticker
+  // Shifted up to qrY=3 to push content slightly further up
   const qrSize = 144;
   const qrX = 14;
-  const qrY = 10;
+  const qrY = 3;
 
   if (qrImage) {
     try {
