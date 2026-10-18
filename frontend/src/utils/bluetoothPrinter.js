@@ -206,10 +206,10 @@ async function sideBySideLabelRaster({ sku, name, category, qrImage }) {
   ctx.fillRect(0, 0, CANVAS_W, CANVAS_H);
 
   // Left: 144x144 dots (18mm x 18mm)
-  // Perfectly centered vertically: (200 - 144) / 2 = 28 dots top and bottom
+  // Shifted up to qrY=10 to eliminate top gap and center vertically on sticker
   const qrSize = 144;
   const qrX = 14;
-  const qrY = 28;
+  const qrY = 10;
 
   if (qrImage) {
     try {
@@ -228,7 +228,7 @@ async function sideBySideLabelRaster({ sku, name, category, qrImage }) {
   ctx.textBaseline = 'top';
 
   // 1. Auto-fit SKU on a single line so it NEVER wraps or cuts off
-  let skuSize = 17;
+  let skuSize = 18;
   ctx.font = `900 ${skuSize}px ${LABEL_FONT}`;
   while (skuSize > 12 && ctx.measureText(sku).width > maxTextW) {
     skuSize -= 1;
@@ -237,29 +237,29 @@ async function sideBySideLabelRaster({ sku, name, category, qrImage }) {
   const skuLineH = skuSize + 3;
   const skuLines = [sku]; // Single line guaranteed
 
-  // 2. Category (middle, uppercase, bold, solid black)
+  // 2. Category (middle, uppercase, bold 16px, solid black)
   const catText = String(category || '').trim().toUpperCase();
   let catLines = [];
-  const catSize = 13;
+  const catSize = 16;
   const catLineH = catSize + 3;
   if (catText) {
-    ctx.font = `800 ${catSize}px ${LABEL_FONT}`;
+    ctx.font = `900 ${catSize}px ${LABEL_FONT}`;
     catLines = wrapText(ctx, catText, maxTextW, false).slice(0, 1);
   }
 
-  // 3. Product Name (placed under the category, bold & prominent)
-  let nameSize = 18;
-  ctx.font = `800 ${nameSize}px ${LABEL_FONT}`;
+  // 3. Product Name (placed under the category, prominent 26px extra-bold)
+  let nameSize = 26;
+  ctx.font = `900 ${nameSize}px ${LABEL_FONT}`;
   let nameLines = wrapText(ctx, name, maxTextW, false);
-  if (nameLines.length > 2 && nameSize > 14) {
-    nameSize = 15;
-    ctx.font = `800 ${nameSize}px ${LABEL_FONT}`;
+  while (nameLines.length > 2 && nameSize > 16) {
+    nameSize -= 2;
+    ctx.font = `900 ${nameSize}px ${LABEL_FONT}`;
     nameLines = wrapText(ctx, name, maxTextW, false);
   }
-  const nameLineH = nameSize + 3;
+  const nameLineH = nameSize + 4;
 
-  const catBlockH = catLines.length > 0 ? (5 + catLineH) : 0;
-  const textBlockH = (skuLines.length * skuLineH) + catBlockH + 5 + (nameLines.length * nameLineH);
+  const catBlockH = catLines.length > 0 ? (6 + catLineH) : 0;
+  const textBlockH = (skuLines.length * skuLineH) + catBlockH + 6 + (nameLines.length * nameLineH);
 
   // Vertically align the text block evenly with the QR code
   let textY = qrY + Math.max(0, Math.round((qrSize - textBlockH) / 2));
@@ -274,9 +274,9 @@ async function sideBySideLabelRaster({ sku, name, category, qrImage }) {
 
   // Draw Category (solid black, no grey dithering)
   if (catLines.length > 0) {
-    textY += 5;
+    textY += 6;
     ctx.fillStyle = '#000000';
-    ctx.font = `800 ${catSize}px ${LABEL_FONT}`;
+    ctx.font = `900 ${catSize}px ${LABEL_FONT}`;
     for (const line of catLines) {
       ctx.fillText(line, textX, textY);
       textY += catLineH;
@@ -284,9 +284,9 @@ async function sideBySideLabelRaster({ sku, name, category, qrImage }) {
   }
 
   // Draw Product Name
-  textY += 5;
+  textY += 6;
   ctx.fillStyle = '#000000';
-  ctx.font = `800 ${nameSize}px ${LABEL_FONT}`;
+  ctx.font = `900 ${nameSize}px ${LABEL_FONT}`;
   for (const line of nameLines) {
     ctx.fillText(line, textX, textY);
     textY += nameLineH;
