@@ -194,7 +194,7 @@ function loadImage(src) {
  */
 async function sideBySideLabelRaster({ sku, name, category, qrImage }) {
   const CANVAS_W = 384;
-  const CANVAS_H = 196; // ~24.5mm at 8 dots/mm, fits inside 25mm sticker
+  const CANVAS_H = 200; // Exact 25mm height at 8 dots/mm
 
   const canvas = document.createElement('canvas');
   canvas.width = CANVAS_W;
@@ -205,11 +205,11 @@ async function sideBySideLabelRaster({ sku, name, category, qrImage }) {
   ctx.fillStyle = '#ffffff';
   ctx.fillRect(0, 0, CANVAS_W, CANVAS_H);
 
-  // Left: 152x152 dots (~19mm x 19mm)
-  // Shifted to y=16 to center vertically on the pre-cut sticker
-  const qrSize = 152;
-  const qrX = 10;
-  const qrY = 16;
+  // Left: 144x144 dots (18mm x 18mm)
+  // Perfectly centered vertically: (200 - 144) / 2 = 28 dots top and bottom
+  const qrSize = 144;
+  const qrX = 14;
+  const qrY = 28;
 
   if (qrImage) {
     try {
@@ -221,14 +221,14 @@ async function sideBySideLabelRaster({ sku, name, category, qrImage }) {
   }
 
   // Right: SKU, Category & Product Name
-  const textX = 168;
-  const maxTextW = CANVAS_W - textX - 6; // ~210 dots wide
+  const textX = 172;
+  const maxTextW = CANVAS_W - textX - 8; // ~204 dots wide
 
   ctx.textAlign = 'left';
   ctx.textBaseline = 'top';
 
-  // 1. Auto-fit SKU on a single line so it NEVER wraps
-  let skuSize = 18;
+  // 1. Auto-fit SKU on a single line so it NEVER wraps or cuts off
+  let skuSize = 17;
   ctx.font = `900 ${skuSize}px ${LABEL_FONT}`;
   while (skuSize > 12 && ctx.measureText(sku).width > maxTextW) {
     skuSize -= 1;
@@ -237,29 +237,29 @@ async function sideBySideLabelRaster({ sku, name, category, qrImage }) {
   const skuLineH = skuSize + 3;
   const skuLines = [sku]; // Single line guaranteed
 
-  // 2. Category (middle, single line)
-  const catText = String(category || '').trim();
+  // 2. Category (middle, uppercase, bold, solid black)
+  const catText = String(category || '').trim().toUpperCase();
   let catLines = [];
   const catSize = 13;
   const catLineH = catSize + 3;
   if (catText) {
-    ctx.font = `700 ${catSize}px ${LABEL_FONT}`;
+    ctx.font = `800 ${catSize}px ${LABEL_FONT}`;
     catLines = wrapText(ctx, catText, maxTextW, false).slice(0, 1);
   }
 
-  // 3. Product Name (placed under the category)
-  let nameSize = Math.min(skuSize, 17);
+  // 3. Product Name (placed under the category, bold & prominent)
+  let nameSize = 18;
   ctx.font = `800 ${nameSize}px ${LABEL_FONT}`;
   let nameLines = wrapText(ctx, name, maxTextW, false);
   if (nameLines.length > 2 && nameSize > 14) {
-    nameSize = 14;
+    nameSize = 15;
     ctx.font = `800 ${nameSize}px ${LABEL_FONT}`;
     nameLines = wrapText(ctx, name, maxTextW, false);
   }
   const nameLineH = nameSize + 3;
 
-  const catBlockH = catLines.length > 0 ? (4 + catLineH) : 0;
-  const textBlockH = (skuLines.length * skuLineH) + catBlockH + 4 + (nameLines.length * nameLineH);
+  const catBlockH = catLines.length > 0 ? (5 + catLineH) : 0;
+  const textBlockH = (skuLines.length * skuLineH) + catBlockH + 5 + (nameLines.length * nameLineH);
 
   // Vertically align the text block evenly with the QR code
   let textY = qrY + Math.max(0, Math.round((qrSize - textBlockH) / 2));
@@ -272,19 +272,19 @@ async function sideBySideLabelRaster({ sku, name, category, qrImage }) {
     textY += skuLineH;
   }
 
-  // Draw Category (if present)
+  // Draw Category (solid black, no grey dithering)
   if (catLines.length > 0) {
-    textY += 4;
-    ctx.fillStyle = '#333333';
-    ctx.font = `700 ${catSize}px ${LABEL_FONT}`;
+    textY += 5;
+    ctx.fillStyle = '#000000';
+    ctx.font = `800 ${catSize}px ${LABEL_FONT}`;
     for (const line of catLines) {
       ctx.fillText(line, textX, textY);
       textY += catLineH;
     }
   }
 
-  // Draw Product Name (under the category)
-  textY += 4;
+  // Draw Product Name
+  textY += 5;
   ctx.fillStyle = '#000000';
   ctx.font = `800 ${nameSize}px ${LABEL_FONT}`;
   for (const line of nameLines) {
@@ -306,8 +306,8 @@ export async function buildSingleLabelEscPos({ sku, name, category, qrImage }) {
       0x1B, 0x40,        // initialize
       0x1B, 0x61, 0x01,  // center
       ...raster,
-      0x1B, 0x33, 22,    // ESC 3 22: exact 22-dot feed to land precisely in gap (total 218 dots pitch)
-      0x0A,              // LF: feed 1 line of 22 dots
+      0x1B, 0x33, 18,    // ESC 3 18: exact 18-dot feed (200 + 18 = 218 dots total cycle)
+      0x0A,              // LF: feed 1 line of 18 dots
       0x1B, 0x32,        // ESC 2: reset line spacing to default
     ];
   }
@@ -317,7 +317,7 @@ export async function buildSingleLabelEscPos({ sku, name, category, qrImage }) {
     0x1B, 0x61, 0x01,
     ...nativeQrCommands(sku),
     ...textBlockRaster({ sku, name, category }),
-    0x1B, 0x33, 22,
+    0x1B, 0x33, 18,
     0x0A,
     0x1B, 0x32,
   ];

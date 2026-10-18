@@ -613,39 +613,38 @@ export default function ProductList({ token, userRole, addToCart }) {
       align-items: center;
       width: 50mm;
       height: 25mm;
-      padding: 1.5mm 3mm;
+      padding: 2mm 2.5mm;
       page-break-after: always;
       break-after: page;
       overflow: hidden;
     }
     .qr-img {
-      width: 20mm;
-      height: 20mm;
-      margin-right: 3mm;
+      width: 18mm;
+      height: 18mm;
+      margin-right: 2.5mm;
       flex-shrink: 0;
       image-rendering: pixelated;
     }
     .text-col {
       display: flex;
       flex-direction: column;
-      justify-content: flex-start;
-      padding-top: 0.6mm;
+      justify-content: center;
       overflow: hidden;
       flex-grow: 1;
     }
     .sku-code {
-      font-size: 13px;
+      font-size: 11px;
       font-weight: 900;
-      letter-spacing: 0.3px;
+      letter-spacing: -0.1px;
       line-height: 1.15;
       white-space: nowrap;
     }
     .prod-cat {
-      font-size: 11px;
-      font-weight: 700;
-      color: #333333;
+      font-size: 9.5px;
+      font-weight: 800;
+      color: #000000;
       text-transform: uppercase;
-      letter-spacing: 0.4px;
+      letter-spacing: 0.3px;
       margin-top: 2px;
       line-height: 1.1;
       white-space: nowrap;
@@ -653,10 +652,10 @@ export default function ProductList({ token, userRole, addToCart }) {
       text-overflow: ellipsis;
     }
     .prod-name {
-      font-size: 15px;
+      font-size: 13.5px;
       font-weight: 800;
       color: #000000;
-      margin-top: 3px;
+      margin-top: 2px;
       line-height: 1.15;
       word-break: break-word;
     }
