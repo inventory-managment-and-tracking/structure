@@ -91,7 +91,8 @@ function canvasToRaster(canvas) {
         if (pixelX >= width) continue;
         const idx = (y * width + pixelX) * 4;
         const gray = 0.299 * data[idx] + 0.587 * data[idx + 1] + 0.114 * data[idx + 2];
-        if (gray < 160) byte |= (1 << (7 - bit));
+        // Threshold of 200 captures all anti-aliased font edges so strokes remain solid and continuous
+        if (gray < 200) byte |= (1 << (7 - bit));
       }
       rasterBytes.push(byte);
     }
@@ -213,6 +214,7 @@ async function sideBySideLabelRaster({ sku, name, category, qrImage }) {
 
   if (qrImage) {
     try {
+      ctx.imageSmoothingEnabled = false;
       const qrImg = await loadImage(qrImage);
       ctx.drawImage(qrImg, qrX, qrY, qrSize, qrSize);
     } catch (e) {
@@ -304,6 +306,7 @@ export async function buildSingleLabelEscPos({ sku, name, category, qrImage }) {
     const raster = await sideBySideLabelRaster({ sku, name, category, qrImage });
     return [
       0x1B, 0x40,        // initialize
+      0x1B, 0x37, 7, 240, 40, // ESC 7: maximum thermal heating density & time for solid jet-black printing
       0x1B, 0x61, 0x01,  // center
       ...raster,
       0x1B, 0x33, 18,    // ESC 3 18: exact 18-dot feed (200 + 18 = 218 dots total cycle)
@@ -314,6 +317,7 @@ export async function buildSingleLabelEscPos({ sku, name, category, qrImage }) {
 
   return [
     0x1B, 0x40,
+    0x1B, 0x37, 7, 240, 40,
     0x1B, 0x61, 0x01,
     ...nativeQrCommands(sku),
     ...textBlockRaster({ sku, name, category }),
