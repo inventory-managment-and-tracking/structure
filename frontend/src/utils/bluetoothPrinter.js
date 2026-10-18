@@ -309,8 +309,8 @@ export async function buildSingleLabelEscPos({ sku, name, category, qrImage }) {
       0x1B, 0x37, 7, 240, 40, // ESC 7: maximum thermal heating density & time for solid jet-black printing
       0x1B, 0x61, 0x01,  // center
       ...raster,
-      0x1B, 0x33, 21,    // ESC 3 21: exact 21-dot feed (200 + 21 = 221 dots total cycle)
-      0x0A,              // LF: feed 1 line of 21 dots
+      0x1B, 0x33, 22,    // ESC 3 22: exact 22-dot feed (200 + 22 = 222 dots total cycle)
+      0x0A,              // LF: feed 1 line of 22 dots
       0x1B, 0x32,        // ESC 2: reset line spacing to default
     ];
   }
@@ -321,7 +321,7 @@ export async function buildSingleLabelEscPos({ sku, name, category, qrImage }) {
     0x1B, 0x61, 0x01,
     ...nativeQrCommands(sku),
     ...textBlockRaster({ sku, name, category }),
-    0x1B, 0x33, 21,
+    0x1B, 0x33, 22,
     0x0A,
     0x1B, 0x32,
   ];
@@ -579,7 +579,7 @@ export async function printQrLabelViaBluetooth({ sku, name, category, qrImage, c
   }
 }
 
-function buildBlankRasterLabelEscPos(gapDots = 21) {
+function buildBlankRasterLabelEscPos(gapDots = 22) {
   const widthBytes = 48; // 384 dots width
   const height = 200;    // 200 dots height (exact 25mm label)
   const header = [
@@ -605,7 +605,7 @@ function buildBlankRasterLabelEscPos(gapDots = 21) {
  * Advances the printer motor by N label cycles using a true 200-row blank raster.
  * Physically identical to a real print job with zero ink and zero waste.
  */
-export async function testBlankFeedViaBluetooth({ copies = 1, gapDots = 21, forceSelect = false } = {}) {
+export async function testBlankFeedViaBluetooth({ copies = 1, gapDots = 22, forceSelect = false } = {}) {
   const { device, server } = await getOrSelectPrinter(forceSelect);
   const copyCount = Math.max(1, parseInt(copies, 10) || 1);
 
