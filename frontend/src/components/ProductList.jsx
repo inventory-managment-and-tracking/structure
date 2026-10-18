@@ -545,7 +545,7 @@ export default function ProductList({ token, userRole, addToCart }) {
         name: activeProduct.name,
         category: activeProduct.category_name || activeProduct.category || '',
         qrImage: generatedQr,
-        copies: printCopies,
+        copies: Math.min(4, Math.max(1, printCopies)),
         forceSelect
       });
       const copyText = printCopies > 1 ? `${printCopies} labels` : 'QR label';
@@ -564,7 +564,7 @@ export default function ProductList({ token, userRole, addToCart }) {
     setIsTestingFeed(true);
     setBtError('');
     try {
-      await testBlankFeedViaBluetooth({ copies: printCopies });
+      await testBlankFeedViaBluetooth({ copies: Math.min(4, Math.max(1, printCopies)) });
       const copyText = printCopies > 1 ? `${printCopies} blank sticker cycles` : '1 blank sticker cycle';
       setToast({ show: true, message: `Advanced ${copyText} (zero ink)!` });
       setTimeout(() => setToast({ show: false, message: '' }), 3500);
@@ -1457,68 +1457,77 @@ ${labelsHtml}
               </div>
             )}
 
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '12px', marginBottom: '16px' }}>
-              <span style={{ fontSize: '13px', fontWeight: '600', color: 'var(--text-muted)' }}>Copies:</span>
-              <div style={{ 
-                display: 'inline-flex', 
-                alignItems: 'center', 
-                background: 'var(--surface-light)', 
-                borderRadius: '8px', 
-                border: '1px solid var(--border-color)', 
-                padding: '3px 6px',
-                gap: '4px'
-              }}>
-                <button
-                  type="button"
-                  onClick={() => setPrintCopies(c => Math.max(1, c - 1))}
-                  style={{ 
-                    width: '28px', 
-                    height: '28px', 
-                    display: 'flex', 
-                    alignItems: 'center', 
-                    justifyContent: 'center', 
-                    background: 'var(--surface)', 
-                    border: '1px solid var(--border-color)', 
-                    borderRadius: '6px', 
-                    cursor: 'pointer', 
-                    fontSize: '16px', 
-                    fontWeight: 'bold', 
-                    color: 'var(--text-color)',
-                    userSelect: 'none'
-                  }}
-                  aria-label="Decrease copies"
-                >-</button>
-                <span style={{ 
-                  minWidth: '36px', 
-                  textAlign: 'center', 
-                  fontWeight: '700', 
-                  fontSize: '15px', 
-                  color: 'var(--text-color)',
-                  userSelect: 'none' 
+            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '4px', marginBottom: '16px' }}>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '12px' }}>
+                <span style={{ fontSize: '13px', fontWeight: '600', color: 'var(--text-muted)' }}>Copies:</span>
+                <div style={{ 
+                  display: 'inline-flex', 
+                  alignItems: 'center', 
+                  background: 'var(--surface-light)', 
+                  borderRadius: '8px', 
+                  border: '1px solid var(--border-color)', 
+                  padding: '3px 6px',
+                  gap: '4px'
                 }}>
-                  {printCopies}
-                </span>
-                <button
-                  type="button"
-                  onClick={() => setPrintCopies(c => Math.min(99, c + 1))}
-                  style={{ 
-                    width: '28px', 
-                    height: '28px', 
-                    display: 'flex', 
-                    alignItems: 'center', 
-                    justifyContent: 'center', 
-                    background: 'var(--surface)', 
-                    border: '1px solid var(--border-color)', 
-                    borderRadius: '6px', 
-                    cursor: 'pointer', 
-                    fontSize: '16px', 
-                    fontWeight: 'bold', 
+                  <button
+                    type="button"
+                    onClick={() => setPrintCopies(c => Math.max(1, c - 1))}
+                    disabled={printCopies <= 1}
+                    style={{ 
+                      width: '28px', 
+                      height: '28px', 
+                      display: 'flex', 
+                      alignItems: 'center', 
+                      justifyContent: 'center', 
+                      background: 'var(--surface)', 
+                      border: '1px solid var(--border-color)', 
+                      borderRadius: '6px', 
+                      cursor: printCopies <= 1 ? 'not-allowed' : 'pointer', 
+                      fontSize: '16px', 
+                      fontWeight: 'bold', 
+                      color: 'var(--text-color)',
+                      opacity: printCopies <= 1 ? 0.4 : 1,
+                      userSelect: 'none'
+                    }}
+                    aria-label="Decrease copies"
+                  >-</button>
+                  <span style={{ 
+                    minWidth: '36px', 
+                    textAlign: 'center', 
+                    fontWeight: '700', 
+                    fontSize: '15px', 
                     color: 'var(--text-color)',
-                    userSelect: 'none'
-                  }}
-                  aria-label="Increase copies"
-                >+</button>
+                    userSelect: 'none' 
+                  }}>
+                    {printCopies}
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => setPrintCopies(c => Math.min(4, c + 1))}
+                    disabled={printCopies >= 4}
+                    style={{ 
+                      width: '28px', 
+                      height: '28px', 
+                      display: 'flex', 
+                      alignItems: 'center', 
+                      justifyContent: 'center', 
+                      background: 'var(--surface)', 
+                      border: '1px solid var(--border-color)', 
+                      borderRadius: '6px', 
+                      cursor: printCopies >= 4 ? 'not-allowed' : 'pointer', 
+                      fontSize: '16px', 
+                      fontWeight: 'bold', 
+                      color: 'var(--text-color)',
+                      opacity: printCopies >= 4 ? 0.4 : 1,
+                      userSelect: 'none'
+                    }}
+                    aria-label="Increase copies"
+                  >+</button>
+                </div>
               </div>
+              <span style={{ fontSize: '10.5px', color: 'var(--text-dim)', fontStyle: 'italic', marginTop: '2px' }}>
+                Max 4 stickers per batch to maintain exact gap alignment
+              </span>
             </div>
 
             <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
