@@ -206,10 +206,10 @@ async function sideBySideLabelRaster({ sku, name, category, qrImage }) {
   ctx.fillRect(0, 0, CANVAS_W, CANVAS_H);
 
   // Left: 144x144 dots (18mm x 18mm)
-  // Shifted up to qrY=3 to push content slightly further up
+  // Positioned at qrY=2 near the top margin
   const qrSize = 144;
   const qrX = 14;
-  const qrY = 3;
+  const qrY = 2;
 
   if (qrImage) {
     try {
@@ -261,8 +261,8 @@ async function sideBySideLabelRaster({ sku, name, category, qrImage }) {
   const catBlockH = catLines.length > 0 ? (6 + catLineH) : 0;
   const textBlockH = (skuLines.length * skuLineH) + catBlockH + 6 + (nameLines.length * nameLineH);
 
-  // Vertically align the text block evenly with the QR code
-  let textY = qrY + Math.max(0, Math.round((qrSize - textBlockH) / 2));
+  // Align text block to start near the top of the QR code
+  let textY = qrY + 4;
 
   // Draw SKU
   ctx.fillStyle = '#000000';
