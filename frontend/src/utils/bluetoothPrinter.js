@@ -579,11 +579,33 @@ export async function printQrLabelViaBluetooth({ sku, name, category, qrImage, c
   }
 }
 
+function buildBlankRasterLabelEscPos(gapDots = 18) {
+  const widthBytes = 48; // 384 dots width
+  const height = 200;    // 200 dots height (exact 25mm label)
+  const header = [
+    0x1B, 0x40,        // initialize
+    0x1B, 0x61, 0x01,  // center
+    0x1D, 0x76, 0x30, 0x00, 48, 0, 200, 0 // GS v 0 0: 48 bytes wide, 200 rows tall
+  ];
+  const footer = [
+    0x1B, 0x33, gapDots, // ESC 3 gapDots
+    0x0A,               // LF
+    0x1B, 0x32          // ESC 2 reset
+  ];
+
+  const totalLen = header.length + (widthBytes * height) + footer.length;
+  const payload = new Uint8Array(totalLen);
+  payload.set(header, 0);
+  // 9,600 bytes in the middle are automatically 0x00 (pure white pixels, zero ink)
+  payload.set(footer, header.length + (widthBytes * height));
+  return payload;
+}
+
 /**
- * Advances the printer motor by N label cycles (blank body + gap) with zero printing.
- * Allows zero-waste calibration of roll pitch and multi-label feed drift from any device.
+ * Advances the printer motor by N label cycles using a true 200-row blank raster.
+ * Physically identical to a real print job with zero ink and zero waste.
  */
-export async function testBlankFeedViaBluetooth({ copies = 1, gapDots = 21, forceSelect = false } = {}) {
+export async function testBlankFeedViaBluetooth({ copies = 1, gapDots = 18, forceSelect = false } = {}) {
   const { device, server } = await getOrSelectPrinter(forceSelect);
   const copyCount = Math.max(1, parseInt(copies, 10) || 1);
 
@@ -614,16 +636,11 @@ export async function testBlankFeedViaBluetooth({ copies = 1, gapDots = 21, forc
       throw new Error('No writable printing characteristic found on printer.');
     }
 
-    // 1 blank label cycle = 7 lines body (~200 dots) + gapDots line feed
-    const blankCycleBytes = new Uint8Array([
-      0x1B, 0x64, 7,        // 7 lines body (~200 dots)
-      0x1B, 0x33, gapDots,  // gap dots feed
-      0x0A,                 // feed gap
-      0x1B, 0x32            // reset line pitch
-    ]);
+    // Exact true-to-life 200-row blank raster + gapDots feed
+    const blankCycleBytes = buildBlankRasterLabelEscPos(gapDots);
 
     for (let i = 0; i < copyCount; i++) {
-      await writePrinterBytes(targetChar, blankCycleBytes, 100);
+      await writePrinterBytes(targetChar, blankCycleBytes, 120);
       if (i < copyCount - 1) {
         await new Promise((resolve) => setTimeout(resolve, 350));
       }
