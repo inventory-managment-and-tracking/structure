@@ -20,9 +20,6 @@ const cssPx = (px) => mm((px / CSS_DPI) * 25.4);
 // Printer QR module size in dots. 9 keeps a 21-module SKU code near the old raster size.
 const QR_MODULE_DOTS = 9;
 
-// Lines fed after the label so the name clears the tear bar above the print head.
-const TEAR_FEED_LINES = 3;
-
 const LABEL_FONT = '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif';
 
 function wrapText(ctx, text, maxWidth, breakAll) {
@@ -91,8 +88,8 @@ function canvasToRaster(canvas) {
         if (pixelX >= width) continue;
         const idx = (y * width + pixelX) * 4;
         const gray = 0.299 * data[idx] + 0.587 * data[idx + 1] + 0.114 * data[idx + 2];
-        // Threshold of 210 captures anti-aliased font edges cleanly without blobbing inner letter loops
-        if (gray < 210) byte |= (1 << (7 - bit));
+        // Calibrated threshold of 225 captures all font edges and solidifies QR modules without blobbing
+        if (gray < 225) byte |= (1 << (7 - bit));
       }
       rasterBytes.push(byte);
     }
@@ -228,33 +225,36 @@ async function sideBySideLabelRaster({ sku, name, category, size, color, qrImage
   ctx.textAlign = 'left';
   ctx.textBaseline = 'top';
 
-  // 1. Auto-fit SKU on a single line so it NEVER wraps or cuts off (crisp 800 weight prevents numbers blobbing)
-  let skuSize = 17;
-  ctx.font = `800 ${skuSize}px ${LABEL_FONT}`;
+  // 1. Auto-fit SKU on a single line so it NEVER wraps or cuts off (extra-bold 900 with letter-spacing keeps loops open)
+  let skuSize = 18;
+  if ('letterSpacing' in ctx) ctx.letterSpacing = '1px';
+  ctx.font = `900 ${skuSize}px ${LABEL_FONT}`;
   while (skuSize > 12 && ctx.measureText(sku).width > maxTextW) {
     skuSize -= 1;
-    ctx.font = `800 ${skuSize}px ${LABEL_FONT}`;
+    ctx.font = `900 ${skuSize}px ${LABEL_FONT}`;
   }
   const skuLineH = skuSize + 3;
   const skuLines = [sku]; // Single line guaranteed
 
-  // 2. Category (middle, uppercase, 700 bold, solid black)
+  // 2. Category (middle, uppercase, 800 bold, solid black)
   const catText = String(category || '').trim().toUpperCase();
   let catLines = [];
   const catSize = 14;
   const catLineH = catSize + 3;
   if (catText) {
-    ctx.font = `700 ${catSize}px ${LABEL_FONT}`;
+    if ('letterSpacing' in ctx) ctx.letterSpacing = '0.5px';
+    ctx.font = `800 ${catSize}px ${LABEL_FONT}`;
     catLines = wrapText(ctx, catText, maxTextW, false).slice(0, 1);
   }
 
   // 3. Product Name (placed under the category, prominent 22px bold)
   let nameSize = 22;
-  ctx.font = `800 ${nameSize}px ${LABEL_FONT}`;
+  if ('letterSpacing' in ctx) ctx.letterSpacing = '0px';
+  ctx.font = `900 ${nameSize}px ${LABEL_FONT}`;
   let nameLines = wrapText(ctx, name, maxTextW, false);
   while (nameLines.length > 2 && nameSize > 15) {
     nameSize -= 2;
-    ctx.font = `800 ${nameSize}px ${LABEL_FONT}`;
+    ctx.font = `900 ${nameSize}px ${LABEL_FONT}`;
     nameLines = wrapText(ctx, name, maxTextW, false);
   }
   const nameLineH = nameSize + 3;
@@ -271,10 +271,11 @@ async function sideBySideLabelRaster({ sku, name, category, size, color, qrImage
   let metaLines = [];
   let metaSize = 15;
   if (metaText) {
-    ctx.font = `700 ${metaSize}px ${LABEL_FONT}`;
+    if ('letterSpacing' in ctx) ctx.letterSpacing = '0.5px';
+    ctx.font = `800 ${metaSize}px ${LABEL_FONT}`;
     while (metaSize > 11 && ctx.measureText(metaText).width > maxTextW) {
       metaSize -= 1;
-      ctx.font = `700 ${metaSize}px ${LABEL_FONT}`;
+      ctx.font = `800 ${metaSize}px ${LABEL_FONT}`;
     }
     metaLines = [metaText];
   }
@@ -286,9 +287,10 @@ async function sideBySideLabelRaster({ sku, name, category, size, color, qrImage
   // Start text at y = 36: comfortably down ~4.5mm from top edge so it never spills over top perforation
   let textY = 36;
 
-  // Draw SKU (clean fillText keeps loops in 0, 6, 8, 9 wide open and razor sharp)
+  // Draw SKU (natural 900 weight with letter spacing keeps loops open and razor sharp)
   ctx.fillStyle = '#000000';
-  ctx.font = `800 ${skuSize}px ${LABEL_FONT}`;
+  if ('letterSpacing' in ctx) ctx.letterSpacing = '1px';
+  ctx.font = `900 ${skuSize}px ${LABEL_FONT}`;
   for (const line of skuLines) {
     ctx.fillText(line, textX, textY);
     textY += skuLineH;
@@ -298,7 +300,8 @@ async function sideBySideLabelRaster({ sku, name, category, size, color, qrImage
   if (catLines.length > 0) {
     textY += gap;
     ctx.fillStyle = '#000000';
-    ctx.font = `700 ${catSize}px ${LABEL_FONT}`;
+    if ('letterSpacing' in ctx) ctx.letterSpacing = '0.5px';
+    ctx.font = `800 ${catSize}px ${LABEL_FONT}`;
     for (const line of catLines) {
       ctx.fillText(line, textX, textY);
       textY += catLineH;
@@ -308,7 +311,8 @@ async function sideBySideLabelRaster({ sku, name, category, size, color, qrImage
   // Draw Product Name
   textY += gap;
   ctx.fillStyle = '#000000';
-  ctx.font = `800 ${nameSize}px ${LABEL_FONT}`;
+  if ('letterSpacing' in ctx) ctx.letterSpacing = '0px';
+  ctx.font = `900 ${nameSize}px ${LABEL_FONT}`;
   for (const line of nameLines) {
     ctx.fillText(line, textX, textY);
     textY += nameLineH;
@@ -318,7 +322,8 @@ async function sideBySideLabelRaster({ sku, name, category, size, color, qrImage
   if (metaLines.length > 0) {
     textY += gap;
     ctx.fillStyle = '#000000';
-    ctx.font = `700 ${metaSize}px ${LABEL_FONT}`;
+    if ('letterSpacing' in ctx) ctx.letterSpacing = '0.5px';
+    ctx.font = `800 ${metaSize}px ${LABEL_FONT}`;
     for (const line of metaLines) {
       ctx.fillText(line, textX, textY);
       textY += metaLineH;
@@ -338,6 +343,7 @@ export async function buildSingleLabelEscPos({ sku, name, category, size, color,
     return [
       0x1B, 0x40,             // initialize
       0x1B, 0x37, 7, 240, 40, // ESC 7: maximum thermal heating density & time for solid jet-black printing
+      0x12, 0x23, 0x04,       // DC2 #: calibrated medium-high thermal density (avoids faint print without blob overdrive)
       0x1B, 0x61, 0x01,       // center
       ...raster,
       0x1B, 0x33, 22,         // ESC 3 22: exact 22-dot feed (200 + 22 = 222 dots total cycle)
@@ -349,6 +355,7 @@ export async function buildSingleLabelEscPos({ sku, name, category, size, color,
   return [
     0x1B, 0x40,
     0x1B, 0x37, 7, 240, 40,
+    0x12, 0x23, 0x04,
     0x1B, 0x61, 0x01,
     ...nativeQrCommands(sku),
     ...textBlockRaster({ sku, name, category }),
