@@ -544,6 +544,8 @@ export default function ProductList({ token, userRole, addToCart }) {
         sku: activeProduct.sku,
         name: activeProduct.name,
         category: activeProduct.category_name || activeProduct.category || '',
+        size: activeProduct.size || '',
+        color: activeProduct.color || '',
         qrImage: generatedQr,
         copies: Math.min(5, Math.max(1, printCopies)),
         forceSelect
@@ -593,6 +595,17 @@ export default function ProductList({ token, userRole, addToCart }) {
       ? `<div class="prod-cat">${catText}</div>`
       : '';
 
+    const metaParts = [];
+    if (activeProduct.size && String(activeProduct.size).trim() && String(activeProduct.size).trim() !== '—') {
+      metaParts.push(String(activeProduct.size).trim());
+    }
+    if (activeProduct.color && String(activeProduct.color).trim() && String(activeProduct.color).trim() !== '—') {
+      metaParts.push(String(activeProduct.color).trim());
+    }
+    const metaHtml = metaParts.length > 0
+      ? `<div class="prod-meta">${metaParts.join(' • ')}</div>`
+      : '';
+
     const labelsHtml = Array.from({ length: printCopies }, () => `
   <div class="label-wrap">
     <img src="${generatedQr}" class="qr-img" alt="QR" />
@@ -600,6 +613,7 @@ export default function ProductList({ token, userRole, addToCart }) {
       <div class="sku-code">${activeProduct.sku}</div>
       ${categoryHtml}
       <div class="prod-name">${activeProduct.name}</div>
+      ${metaHtml}
     </div>
   </div>`).join('');
 
@@ -678,6 +692,16 @@ export default function ProductList({ token, userRole, addToCart }) {
       margin-top: 1.5px;
       line-height: 1.15;
       word-break: break-word;
+    }
+    .prod-meta {
+      font-size: 8.5px;
+      font-weight: 700;
+      color: #000000;
+      margin-top: 1.5px;
+      line-height: 1.1;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
     }
   </style>
 </head>
@@ -1445,6 +1469,12 @@ ${labelsHtml}
                   </div>
                 )}
                 <div style={{ fontSize: '15px', fontWeight: '800', color: '#000000', marginTop: '3px', wordBreak: 'break-word', lineHeight: '1.2' }}>{activeProduct.name}</div>
+                {((activeProduct.size && String(activeProduct.size).trim() && String(activeProduct.size).trim() !== '—') ||
+                  (activeProduct.color && String(activeProduct.color).trim() && String(activeProduct.color).trim() !== '—')) && (
+                  <div style={{ fontSize: '11.5px', fontWeight: '700', color: '#222222', marginTop: '2px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                    {[activeProduct.size, activeProduct.color].filter((v) => v && String(v).trim() && String(v).trim() !== '—').join(' • ')}
+                  </div>
+                )}
                 <div style={{ fontSize: '9px', color: '#777777', marginTop: '4px', fontStyle: 'italic' }}>50 × 25 mm Sticker</div>
               </div>
             </div>
