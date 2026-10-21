@@ -203,10 +203,10 @@ async function sideBySideLabelRaster({ sku, name, category, size, color, qrImage
   ctx.fillStyle = '#ffffff';
   ctx.fillRect(0, 0, CANVAS_W, CANVAS_H);
 
-  // Left: 138x138 dots (17.25mm x 17.25mm), centered vertically on the 200-dot canvas
-  const qrSize = 138;
-  const qrX = 10;
-  const qrY = 31; // Centered vertically in 200-dot canvas
+  // Left: 148x148 dots (18.5mm x 18.5mm), centered vertically on the 200-dot canvas
+  const qrSize = 148;
+  const qrX = 14;
+  const qrY = 22; // Centered vertically in 200-dot canvas with ~2.75mm top/bottom margins
 
   if (qrImage) {
     try {
@@ -219,8 +219,8 @@ async function sideBySideLabelRaster({ sku, name, category, size, color, qrImage
   }
 
   // Right: SKU, Category, Product Name & Size/Color
-  const textX = 154;
-  const maxTextW = CANVAS_W - textX - 6; // ~224 dots wide
+  const textX = 172;
+  const maxTextW = CANVAS_W - textX - 8; // ~204 dots wide
 
   ctx.textAlign = 'left';
   ctx.textBaseline = 'top';
@@ -285,11 +285,11 @@ async function sideBySideLabelRaster({ sku, name, category, size, color, qrImage
   }
   const metaLineH = metaSize + 3;
 
-  // Spacing between lines
-  const gap = 5;
+  // Spacing between lines: 6 dots gives comfortable vertical separation
+  const gap = 6;
 
-  // Start text at y = 32: comfortable top margin, perfectly balanced
-  let textY = 32;
+  // Start text at y = 36: comfortably down ~4.5mm from top edge so it never spills over top perforation
+  let textY = 36;
 
   // Draw SKU (extra-bold 900 like CK)
   ctx.fillStyle = '#000000';
