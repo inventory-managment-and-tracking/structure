@@ -91,8 +91,8 @@ function canvasToRaster(canvas) {
         if (pixelX >= width) continue;
         const idx = (y * width + pixelX) * 4;
         const gray = 0.299 * data[idx] + 0.587 * data[idx + 1] + 0.114 * data[idx + 2];
-        // Threshold of 235 captures all anti-aliased font edges so strokes remain solid, thick, and continuous
-        if (gray < 235) byte |= (1 << (7 - bit));
+        // Threshold of 210 captures anti-aliased font edges cleanly without blobbing inner letter loops
+        if (gray < 210) byte |= (1 << (7 - bit));
       }
       rasterBytes.push(byte);
     }
@@ -209,7 +209,7 @@ async function sideBySideLabelRaster({ sku, name, category, size, color, qrImage
   // Left: 148x148 dots (18.5mm x 18.5mm), centered vertically on the 200-dot canvas
   const qrSize = 148;
   const qrX = 14;
-  const qrY = 24; // (200 - 148) / 2 = 26; positioned at 24 to align top with the first line of text
+  const qrY = 22; // Centered vertically in 200-dot canvas with ~2.75mm top/bottom margins
 
   if (qrImage) {
     try {
@@ -228,45 +228,36 @@ async function sideBySideLabelRaster({ sku, name, category, size, color, qrImage
   ctx.textAlign = 'left';
   ctx.textBaseline = 'top';
 
-  // Helper to draw text with thermal stroke mass so thin letters burn jet-black without white speckles
-  const drawSolidText = (text, x, y, strokeW = 0.7) => {
-    ctx.lineWidth = strokeW;
-    ctx.strokeStyle = '#000000';
-    ctx.strokeText(text, x, y);
-    ctx.fillStyle = '#000000';
-    ctx.fillText(text, x, y);
-  };
-
-  // 1. Auto-fit SKU on a single line so it NEVER wraps or cuts off
-  let skuSize = 18;
-  ctx.font = `900 ${skuSize}px ${LABEL_FONT}`;
+  // 1. Auto-fit SKU on a single line so it NEVER wraps or cuts off (crisp 800 weight prevents numbers blobbing)
+  let skuSize = 17;
+  ctx.font = `800 ${skuSize}px ${LABEL_FONT}`;
   while (skuSize > 12 && ctx.measureText(sku).width > maxTextW) {
     skuSize -= 1;
-    ctx.font = `900 ${skuSize}px ${LABEL_FONT}`;
+    ctx.font = `800 ${skuSize}px ${LABEL_FONT}`;
   }
   const skuLineH = skuSize + 3;
   const skuLines = [sku]; // Single line guaranteed
 
-  // 2. Category (middle, uppercase, bold 15px, solid black)
+  // 2. Category (middle, uppercase, 700 bold, solid black)
   const catText = String(category || '').trim().toUpperCase();
   let catLines = [];
-  const catSize = 15;
+  const catSize = 14;
   const catLineH = catSize + 3;
   if (catText) {
-    ctx.font = `900 ${catSize}px ${LABEL_FONT}`;
+    ctx.font = `700 ${catSize}px ${LABEL_FONT}`;
     catLines = wrapText(ctx, catText, maxTextW, false).slice(0, 1);
   }
 
-  // 3. Product Name (placed under the category, prominent 24px extra-bold)
-  let nameSize = 24;
-  ctx.font = `900 ${nameSize}px ${LABEL_FONT}`;
+  // 3. Product Name (placed under the category, prominent 22px bold)
+  let nameSize = 22;
+  ctx.font = `800 ${nameSize}px ${LABEL_FONT}`;
   let nameLines = wrapText(ctx, name, maxTextW, false);
-  while (nameLines.length > 2 && nameSize > 16) {
+  while (nameLines.length > 2 && nameSize > 15) {
     nameSize -= 2;
-    ctx.font = `900 ${nameSize}px ${LABEL_FONT}`;
+    ctx.font = `800 ${nameSize}px ${LABEL_FONT}`;
     nameLines = wrapText(ctx, name, maxTextW, false);
   }
-  const nameLineH = nameSize + 4;
+  const nameLineH = nameSize + 3;
 
   // 4. Size & Color (under Product Name: simple format e.g. "M • Black")
   const metaParts = [];
@@ -278,58 +269,58 @@ async function sideBySideLabelRaster({ sku, name, category, size, color, qrImage
   }
   const metaText = metaParts.join(' • ');
   let metaLines = [];
-  let metaSize = 16;
+  let metaSize = 15;
   if (metaText) {
-    ctx.font = `800 ${metaSize}px ${LABEL_FONT}`;
+    ctx.font = `700 ${metaSize}px ${LABEL_FONT}`;
     while (metaSize > 11 && ctx.measureText(metaText).width > maxTextW) {
       metaSize -= 1;
-      ctx.font = `800 ${metaSize}px ${LABEL_FONT}`;
+      ctx.font = `700 ${metaSize}px ${LABEL_FONT}`;
     }
     metaLines = [metaText];
   }
   const metaLineH = metaSize + 3;
 
-  // Spacing between lines: 7 dots gives balanced distribution matching QR height
-  const gap = 7;
-  const catBlockH = catLines.length > 0 ? (gap + catLineH) : 0;
-  const nameBlockH = gap + (nameLines.length * nameLineH);
-  const metaBlockH = metaLines.length > 0 ? (gap + metaLineH) : 0;
-  const textBlockH = (skuLines.length * skuLineH) + catBlockH + nameBlockH + metaBlockH;
+  // Spacing between lines: 6 dots gives comfortable vertical separation
+  const gap = 6;
 
-  // Start text aligned with the top of the QR code (qrY = 24)
-  let textY = Math.max(16, Math.min(qrY, Math.floor((CANVAS_H - textBlockH) / 2)));
+  // Start text at y = 36: comfortably down ~4.5mm from top edge so it never spills over top perforation
+  let textY = 36;
 
-  // Draw SKU
-  ctx.font = `900 ${skuSize}px ${LABEL_FONT}`;
+  // Draw SKU (clean fillText keeps loops in 0, 6, 8, 9 wide open and razor sharp)
+  ctx.fillStyle = '#000000';
+  ctx.font = `800 ${skuSize}px ${LABEL_FONT}`;
   for (const line of skuLines) {
-    drawSolidText(line, textX, textY, 0.7);
+    ctx.fillText(line, textX, textY);
     textY += skuLineH;
   }
 
   // Draw Category (solid black)
   if (catLines.length > 0) {
     textY += gap;
-    ctx.font = `900 ${catSize}px ${LABEL_FONT}`;
+    ctx.fillStyle = '#000000';
+    ctx.font = `700 ${catSize}px ${LABEL_FONT}`;
     for (const line of catLines) {
-      drawSolidText(line, textX, textY, 0.7);
+      ctx.fillText(line, textX, textY);
       textY += catLineH;
     }
   }
 
   // Draw Product Name
   textY += gap;
-  ctx.font = `900 ${nameSize}px ${LABEL_FONT}`;
+  ctx.fillStyle = '#000000';
+  ctx.font = `800 ${nameSize}px ${LABEL_FONT}`;
   for (const line of nameLines) {
-    drawSolidText(line, textX, textY, 0.8);
+    ctx.fillText(line, textX, textY);
     textY += nameLineH;
   }
 
   // Draw Size & Color under Name
   if (metaLines.length > 0) {
     textY += gap;
-    ctx.font = `800 ${metaSize}px ${LABEL_FONT}`;
+    ctx.fillStyle = '#000000';
+    ctx.font = `700 ${metaSize}px ${LABEL_FONT}`;
     for (const line of metaLines) {
-      drawSolidText(line, textX, textY, 0.7);
+      ctx.fillText(line, textX, textY);
       textY += metaLineH;
     }
   }
@@ -346,9 +337,7 @@ export async function buildSingleLabelEscPos({ sku, name, category, size, color,
     const raster = await sideBySideLabelRaster({ sku, name, category, size, color, qrImage });
     return [
       0x1B, 0x40,             // initialize
-      0x1B, 0x37, 7, 240, 40, // ESC 7: maximum thermal heating density & time
-      0x12, 0x23, 0xFF,       // DC2 #: max print density on POS-58
-      0x1D, 0x7C, 0x08,       // GS |: max density mode
+      0x1B, 0x37, 7, 240, 40, // ESC 7: maximum thermal heating density & time for solid jet-black printing
       0x1B, 0x61, 0x01,       // center
       ...raster,
       0x1B, 0x33, 22,         // ESC 3 22: exact 22-dot feed (200 + 22 = 222 dots total cycle)
