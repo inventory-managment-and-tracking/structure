@@ -463,8 +463,18 @@ async function writePrinterBytes(characteristic, bytes, chunkSize = 120) {
     write = (chunk) => characteristic.writeValue(chunk);
   }
 
-  let effectiveChunk = ios ? 20 : chunkSize;
-  const delayMs = ios ? 40 : (writeWithoutResponse ? 6 : 0);
+  // -----------------------------------------------------------------
+  // iOS BLE is very sensitive to lost ACKs. A lost ACK triggers the
+  // OS to *re-send the whole characteristic write*, which can duplicate
+  // the raster data and cause an endless print loop.
+  // -----------------------------------------------------------------
+  // - Use a tiny chunk size (<= 10 bytes) on iOS to minimise the amount
+  //   of data that may be retransmitted.
+  // - Insert a short pause after each chunk to give the printer time
+  //   to process it before the next packet arrives.
+  // - Fall back to the original `chunkSize` on non-iOS platforms.
+  let effectiveChunk = ios ? Math.min(10, chunkSize) : chunkSize;
+  const delayMs = ios ? 60 : (writeWithoutResponse ? 6 : 0);
 
   for (let offset = 0; offset < bytes.length;) {
     const end = Math.min(offset + effectiveChunk, bytes.length);
@@ -665,16 +675,20 @@ async function getOrSelectPrinter(forceSelect = false) {
  * @param {number} [params.copies=1] - Number of copies to print
  * @param {boolean} [params.forceSelect=false] - Force showing the device chooser popup
  */
-export async function printQrLabelViaBluetooth({ sku, name, category, size, color, qrImage, copies = 1, forceSelect = false }) {
+export async function printQrLabelViaBluetooth({ sku, name, category, size, color, qrImage, copies = 1, forceSelect = false, forceSingleCopy = false }) {
   if (typeof navigator === 'undefined' || !navigator.bluetooth) {
     throw new Error('Web Bluetooth is not supported on this browser. Please use Chrome, Edge, or Samsung Internet on Android/PC.');
   }
 
-  // Guard: prevent overlapping print jobs (iOS touch events can double-fire)
+  // -----------------------------------------------------------------
+  // Synchronous guard: set the flag *before* any async work so two
+  // rapid UI events can't both think they have exclusive access.
+  // -----------------------------------------------------------------
   if (printInProgress) {
     console.warn('Print already in progress, ignoring duplicate call');
     return true;
   }
+  // Set immediately (no await in between)
   printInProgress = true;
 
   // Cancel any pending disconnect from a previous print
@@ -725,6 +739,8 @@ export async function printQrLabelViaBluetooth({ sku, name, category, size, colo
       await writePrinterBytes(targetChar, rasterBytes, ios ? 20 : 100);
       await new Promise((resolve) => setTimeout(resolve, rasterPauseMs));
       await writePrinterBytes(targetChar, gapBytes, ios ? 20 : 100);
+      // If iOS requested a forced single copy, stop after the first iteration
+      if (ios && forceSingleCopy) break;
       if (i < copyCount - 1) {
         await new Promise((resolve) => setTimeout(resolve, betweenCopyMs));
       }
