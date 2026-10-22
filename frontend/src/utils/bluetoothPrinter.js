@@ -355,6 +355,7 @@ export async function buildSingleLabelParts({ sku, name, category, size, color, 
   const gap = [
     0x1B, 0x33, 22,         // ESC 3 22: set line spacing to 22 dots
     0x0A,                   // LF: advance 22 dots (sticker gap)
+    0x1B, 0x32,             // ESC 2: restore default line spacing (prevents runaway feed)
   ];
 
   if (qrImage) {
@@ -408,16 +409,40 @@ function isIOS() {
 }
 
 async function writePrinterBytes(characteristic, bytes, chunkSize = 120) {
+  const ios = isIOS();
+  const canWrite = !!characteristic.properties.write;
   const canWriteWithoutResponse = !!characteristic.properties.writeWithoutResponse;
-  const write = canWriteWithoutResponse
-    ? (chunk) => characteristic.writeValueWithoutResponse(chunk)
-    : (chunk) => characteristic.writeValue(chunk);
 
-  // 6ms delay gives the thermal capacitor time to recharge between bursts for jet-black burn
-  const delayMs = canWriteWithoutResponse ? 6 : 0;
+  if (!canWrite && !canWriteWithoutResponse) {
+    throw new Error('Printer characteristic is not writable.');
+  }
+
+  // iPhone (Bluefy): writeWithoutResponse queues in CoreBluetooth and can replay
+  // chunks after the app thinks the job finished, causing non-stop printing.
+  let writeWithoutResponse = false;
+  let write;
+  if (ios && canWrite) {
+    write = (chunk) => characteristic.writeValue(chunk);
+  } else if (ios && canWriteWithoutResponse) {
+    write = (chunk) => characteristic.writeValueWithoutResponse(chunk);
+    writeWithoutResponse = true;
+  } else if (canWriteWithoutResponse) {
+    write = (chunk) => characteristic.writeValueWithoutResponse(chunk);
+    writeWithoutResponse = true;
+  } else {
+    write = (chunk) => characteristic.writeValue(chunk);
+  }
+
+  let effectiveChunk = chunkSize;
+  if (ios) {
+    effectiveChunk = Math.min(chunkSize, writeWithoutResponse ? 10 : 20);
+  }
+  const delayMs = ios
+    ? (writeWithoutResponse ? 50 : 35)
+    : (writeWithoutResponse ? 6 : 0);
 
   for (let offset = 0; offset < bytes.length;) {
-    const end = Math.min(offset + chunkSize, bytes.length);
+    const end = Math.min(offset + effectiveChunk, bytes.length);
     const chunk = bytes.subarray(offset, end);
     try {
       await write(chunk);
@@ -426,9 +451,9 @@ async function writePrinterBytes(characteristic, bytes, chunkSize = 120) {
         await new Promise((resolve) => setTimeout(resolve, delayMs));
       }
     } catch (err) {
-      if (chunkSize <= 20) throw err;
-      chunkSize = 20;
-      await new Promise((resolve) => setTimeout(resolve, 15));
+      if (effectiveChunk <= 10) throw err;
+      effectiveChunk = ios ? 10 : 20;
+      await new Promise((resolve) => setTimeout(resolve, ios ? 40 : 15));
     }
   }
 }
@@ -657,19 +682,24 @@ export async function printQrLabelViaBluetooth({ sku, name, category, size, colo
     const rasterBytes = new Uint8Array(raster);
     const gapBytes = new Uint8Array(gap);
 
+    const ios = isIOS();
+    const rasterPauseMs = ios ? 450 : 150;
+    const betweenCopyMs = ios ? 500 : 350;
+
     // 4. Send each copy: raster → pause → gap
     for (let i = 0; i < copyCount; i++) {
-      await writePrinterBytes(targetChar, rasterBytes, 100);
+      await writePrinterBytes(targetChar, rasterBytes, ios ? 20 : 100);
       // Let the printer fully consume the raster before sending feed commands.
-      // This prevents BLE-level retransmits from corrupting the byte stream boundary.
-      await new Promise((resolve) => setTimeout(resolve, 150));
-      await writePrinterBytes(targetChar, gapBytes, 100);
+      await new Promise((resolve) => setTimeout(resolve, rasterPauseMs));
+      await writePrinterBytes(targetChar, gapBytes, ios ? 20 : 100);
       if (i < copyCount - 1) {
-        // Brief pause to allow physical paper tear line advance
-        await new Promise((resolve) => setTimeout(resolve, 350));
+        await new Promise((resolve) => setTimeout(resolve, betweenCopyMs));
       }
     }
 
+    if (ios) {
+      await new Promise((resolve) => setTimeout(resolve, 400));
+    }
 
     // Update saved name on successful print
     if (device.id) {
@@ -686,8 +716,12 @@ export async function printQrLabelViaBluetooth({ sku, name, category, size, colo
     return true;
   } finally {
     printInProgress = false;
-    // Dynamic disconnect: scale delay based on number of copies so motor finishes completely
-    const disconnectDelay = Math.max(3000, copyCount * 1800 + 1500);
+    // iOS: disconnect soon after acknowledged writes so the stack cannot keep flushing
+    // queued BLE packets to the printer (runaway reprints / endless feed).
+    const ios = isIOS();
+    const disconnectDelay = ios
+      ? Math.max(1500, copyCount * 900 + 800)
+      : Math.max(3000, copyCount * 1800 + 1500);
     disconnectTimer = setTimeout(() => {
       try {
         if (device.gatt && device.gatt.connected) {

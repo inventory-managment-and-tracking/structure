@@ -536,7 +536,7 @@ export default function ProductList({ token, userRole, addToCart }) {
   };
 
   const handleBluetoothPrint = async (forceSelect = false) => {
-    if (!activeProduct || !generatedQr) return;
+    if (!activeProduct || !generatedQr || isBtPrinting) return;
     setIsBtPrinting(true);
     setBtError('');
     try {
@@ -1563,7 +1563,8 @@ ${labelsHtml}
             </div>
 
             <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-              <button 
+              <button
+                type="button"
                 onClick={() => handleBluetoothPrint(false)}
                 disabled={isBtPrinting}
                 className="btn-primary" 
