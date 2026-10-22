@@ -338,33 +338,43 @@ async function sideBySideLabelRaster({ sku, name, category, size, color, qrImage
 }
 
 /**
- * Builds a single 50x25mm tag.
- * If qrImage is provided, uses the side-by-side landscape format.
+ * Builds a single 50x25mm tag as two separate parts:
+ *   raster — the init + image data (sent first, ~9.6KB)
+ *   gap    — the line-feed to advance past the sticker gap (sent after raster is fully consumed)
+ *
+ * Keeping them separate prevents iOS BLE chunk re-transmissions from
+ * desynchronising the printer's byte-stream parser after the large raster block.
  */
-export async function buildSingleLabelEscPos({ sku, name, category, size, color, qrImage }) {
+export async function buildSingleLabelParts({ sku, name, category, size, color, qrImage }) {
+  const header = [
+    0x1B, 0x40,             // ESC @: initialize printer
+    0x1B, 0x37, 7, 240, 40, // ESC 7: max thermal density for jet-black
+    0x1B, 0x61, 0x01,       // ESC a 1: center alignment
+  ];
+
+  const gap = [
+    0x1B, 0x33, 22,         // ESC 3 22: set line spacing to 22 dots
+    0x0A,                   // LF: advance 22 dots (sticker gap)
+  ];
+
   if (qrImage) {
     const raster = await sideBySideLabelRaster({ sku, name, category, size, color, qrImage });
-    return [
-      0x1B, 0x40,             // initialize
-      0x1B, 0x37, 7, 240, 40, // ESC 7: maximum thermal heating density & time for solid jet-black printing
-      0x1B, 0x61, 0x01,       // center
-      ...raster,
-      0x1B, 0x33, 22,         // ESC 3 22: exact 22-dot feed (200 + 22 = 222 dots total cycle)
-      0x0A,                   // LF: feed 1 line of 22 dots
-      0x1B, 0x32,             // ESC 2: reset line spacing to default
-    ];
+    return {
+      raster: [...header, ...raster],
+      gap,
+    };
   }
 
-  return [
-    0x1B, 0x40,
-    0x1B, 0x37, 7, 240, 40,
-    0x1B, 0x61, 0x01,
-    ...nativeQrCommands(sku),
-    ...textBlockRaster({ sku, name, category }),
-    0x1B, 0x33, 22,
-    0x0A,
-    0x1B, 0x32,
-  ];
+  return {
+    raster: [...header, ...nativeQrCommands(sku), ...textBlockRaster({ sku, name, category })],
+    gap,
+  };
+}
+
+/** Convenience: single flat array for callers that don't need the split (e.g. labelToEscPos). */
+export async function buildSingleLabelEscPos(params) {
+  const { raster, gap } = await buildSingleLabelParts(params);
+  return [...raster, ...gap];
 }
 
 /**
@@ -398,24 +408,13 @@ function isIOS() {
 }
 
 async function writePrinterBytes(characteristic, bytes, chunkSize = 120) {
-  const ios = isIOS();
-
-  // On iOS: ALWAYS use writeValue (with-response) to prevent CoreBluetooth
-  // buffer replay that causes double/1.5x printing. Also use smaller chunks.
-  const canWriteWithoutResponse = !ios && !!characteristic.properties.writeWithoutResponse;
+  const canWriteWithoutResponse = !!characteristic.properties.writeWithoutResponse;
   const write = canWriteWithoutResponse
     ? (chunk) => characteristic.writeValueWithoutResponse(chunk)
     : (chunk) => characteristic.writeValue(chunk);
 
-  // iOS needs longer delays to let CoreBluetooth fully flush each write.
-  // writeWithoutResponse (non-iOS) needs a small recharge delay.
-  // writeValue (with-response) blocks until acknowledged, so no extra delay needed on non-iOS.
-  const delayMs = ios ? 25 : (canWriteWithoutResponse ? 6 : 0);
-
-  // Smaller chunks on iOS to stay within CoreBluetooth's optimal MTU window
-  if (ios && chunkSize > 80) {
-    chunkSize = 80;
-  }
+  // 6ms delay gives the thermal capacitor time to recharge between bursts for jet-black burn
+  const delayMs = canWriteWithoutResponse ? 6 : 0;
 
   for (let offset = 0; offset < bytes.length;) {
     const end = Math.min(offset + chunkSize, bytes.length);
@@ -429,7 +428,7 @@ async function writePrinterBytes(characteristic, bytes, chunkSize = 120) {
     } catch (err) {
       if (chunkSize <= 20) throw err;
       chunkSize = 20;
-      await new Promise((resolve) => setTimeout(resolve, ios ? 40 : 15));
+      await new Promise((resolve) => setTimeout(resolve, 15));
     }
   }
 }
@@ -650,12 +649,21 @@ export async function printQrLabelViaBluetooth({ sku, name, category, size, colo
       throw new Error('No writable printing characteristic found on printer.');
     }
 
-    // 3. Build single label binary payload (side-by-side if qrImage passed)
-    const singleLabelBytes = new Uint8Array(await buildSingleLabelEscPos({ sku, name, category, size, color, qrImage }));
+    // 3. Build label as two separate payloads: raster (large ~9.6KB) and gap (tiny ~4B)
+    //    Sending them separately with a pause prevents iOS BLE chunk re-transmissions
+    //    from desynchronising the printer's byte parser after the raster block, which
+    //    was causing ~1.5x printed output on iPhone (Bluefy).
+    const { raster, gap } = await buildSingleLabelParts({ sku, name, category, size, color, qrImage });
+    const rasterBytes = new Uint8Array(raster);
+    const gapBytes = new Uint8Array(gap);
 
-    // 4. Send each copy sequentially with a brief pause for smooth continuous printing
+    // 4. Send each copy: raster → pause → gap
     for (let i = 0; i < copyCount; i++) {
-      await writePrinterBytes(targetChar, singleLabelBytes, 100);
+      await writePrinterBytes(targetChar, rasterBytes, 100);
+      // Let the printer fully consume the raster before sending feed commands.
+      // This prevents BLE-level retransmits from corrupting the byte stream boundary.
+      await new Promise((resolve) => setTimeout(resolve, 150));
+      await writePrinterBytes(targetChar, gapBytes, 100);
       if (i < copyCount - 1) {
         // Brief pause to allow physical paper tear line advance
         await new Promise((resolve) => setTimeout(resolve, 350));
