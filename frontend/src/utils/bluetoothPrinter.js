@@ -68,17 +68,20 @@ function wrapText(ctx, text, maxWidth, breakAll) {
   return lines.length ? lines : [''];
 }
 
-function canvasToRaster(canvas) {
-  const ctx = canvas.getContext('2d');
-  const { width, height } = canvas;
-  const widthBytes = Math.ceil(width / 8);
-  const data = ctx.getImageData(0, 0, width, height).data;
-
+function wrapGsV0(bitmapBytes, widthBytes, height) {
   const xL = widthBytes % 256;
   const xH = Math.floor(widthBytes / 256);
   const yL = height % 256;
   const yH = Math.floor(height / 256);
-  const rasterBytes = [0x1D, 0x76, 0x30, 0x00, xL, xH, yL, yH];
+  return [0x1D, 0x76, 0x30, 0x00, xL, xH, yL, yH, ...bitmapBytes];
+}
+
+function canvasToRaster(canvas, { bandRows } = {}) {
+  const ctx = canvas.getContext('2d');
+  const { width, height } = canvas;
+  const widthBytes = Math.ceil(width / 8);
+  const data = ctx.getImageData(0, 0, width, height).data;
+  const bitmap = [];
 
   for (let y = 0; y < height; y++) {
     for (let x = 0; x < widthBytes; x++) {
@@ -91,8 +94,19 @@ function canvasToRaster(canvas) {
         // Calibrated threshold of 225 captures all font edges and solidifies QR modules without blobbing
         if (gray < 225) byte |= (1 << (7 - bit));
       }
-      rasterBytes.push(byte);
+      bitmap.push(byte);
     }
+  }
+
+  if (!bandRows || bandRows >= height) {
+    return wrapGsV0(bitmap, widthBytes, height);
+  }
+
+  const rasterBytes = [];
+  for (let y = 0; y < height; y += bandRows) {
+    const rows = Math.min(bandRows, height - y);
+    const slice = bitmap.slice(y * widthBytes, (y + rows) * widthBytes);
+    rasterBytes.push(...wrapGsV0(slice, widthBytes, rows));
   }
   return rasterBytes;
 }
@@ -109,7 +123,7 @@ function nativeQrCommands(text) {
   ];
 }
 
-function textBlockRaster({ sku, name, category }) {
+function textBlockRaster({ sku, name, category }, rasterOpts) {
   const measure = document.createElement('canvas').getContext('2d');
   if (!measure) throw new Error('Canvas 2D context not available');
 
@@ -172,7 +186,7 @@ function textBlockRaster({ sku, name, category }) {
     y += nameLineH;
   }
 
-  return canvasToRaster(canvas);
+  return canvasToRaster(canvas, rasterOpts);
 }
 
 function loadImage(src) {
@@ -190,7 +204,7 @@ function loadImage(src) {
  * Left: 20x20mm QR Code
  * Right: SKU (top, pushed up ~1mm) -> Category (middle) -> Product Name (under category)
  */
-async function sideBySideLabelRaster({ sku, name, category, size, color, qrImage }) {
+async function sideBySideLabelRaster({ sku, name, category, size, color, qrImage }, rasterOpts) {
   const CANVAS_W = 384;
   const CANVAS_H = 200; // Exact 25mm height at 8 dots/mm
 
@@ -334,32 +348,57 @@ async function sideBySideLabelRaster({ sku, name, category, size, color, qrImage
     }
   }
 
-  return canvasToRaster(canvas);
+  return canvasToRaster(canvas, rasterOpts);
 }
 
 /**
+ * Detect iOS (iPhone/iPad/iPod). Bluefy + CoreBluetooth can retransmit BLE
+ * writes; a duplicated chunk in a large GS v 0 block is parsed as feed commands.
+ */
+function isIOS() {
+  if (typeof navigator === 'undefined') return false;
+  const ua = navigator.userAgent || '';
+  return /iPhone|iPad|iPod/i.test(ua) ||
+    (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+}
+
+const IOS_NUL_TAIL = new Array(20).fill(0);
+const IOS_BAND_ROWS = 20;
+
+/**
  * Builds a single 50x25mm tag as two separate parts:
- *   raster — the init + image data (sent first, ~9.6KB)
- *   gap    — the line-feed to advance past the sticker gap (sent after raster is fully consumed)
+ *   raster — the init + image data (sent first)
+ *   gap    — feed past the sticker gap (sent after raster is fully consumed)
  *
- * Keeping them separate prevents iOS BLE chunk re-transmissions from
- * desynchronising the printer's byte-stream parser after the large raster block.
+ * iPhone: image is 20-row GS v 0 bands so a replayed BLE chunk cannot turn
+ * the remaining bitmap into runaway feed. Gap is one-shot ESC J, then ESC @
+ * and 20 NULs so a replayed tail resets instead of feeding.
+ * Android/PC: one full raster and ESC 3 + LF + ESC 2 (already stops cleanly).
  */
 export async function buildSingleLabelParts({ sku, name, category, size, color, qrImage }) {
+  const ios = isIOS();
   const header = [
     0x1B, 0x40,             // ESC @: initialize printer
     0x1B, 0x37, 7, 240, 40, // ESC 7: max thermal density for jet-black
     0x1B, 0x61, 0x01,       // ESC a 1: center alignment
   ];
 
-  const gap = [
-    0x1B, 0x33, 22,         // ESC 3 22: set line spacing to 22 dots
-    0x0A,                   // LF: advance 22 dots (sticker gap)
-    0x1B, 0x32,             // ESC 2: restore default line spacing (prevents runaway feed)
-  ];
+  const gap = ios
+    ? [
+        0x1B, 0x4A, 22,     // ESC J 22: feed 22 dots once (does not change line spacing)
+        0x1B, 0x40,         // ESC @: reset
+        ...IOS_NUL_TAIL,    // replay of this packet is a no-op
+      ]
+    : [
+        0x1B, 0x33, 22,     // ESC 3 22: set line spacing to 22 dots
+        0x0A,               // LF: advance 22 dots (sticker gap)
+        0x1B, 0x32,         // ESC 2: restore default line spacing
+      ];
+
+  const rasterOpts = ios ? { bandRows: IOS_BAND_ROWS } : undefined;
 
   if (qrImage) {
-    const raster = await sideBySideLabelRaster({ sku, name, category, size, color, qrImage });
+    const raster = await sideBySideLabelRaster({ sku, name, category, size, color, qrImage }, rasterOpts);
     return {
       raster: [...header, ...raster],
       gap,
@@ -367,7 +406,7 @@ export async function buildSingleLabelParts({ sku, name, category, size, color, 
   }
 
   return {
-    raster: [...header, ...nativeQrCommands(sku), ...textBlockRaster({ sku, name, category })],
+    raster: [...header, ...nativeQrCommands(sku), ...textBlockRaster({ sku, name, category }, rasterOpts)],
     gap,
   };
 }
@@ -397,17 +436,6 @@ let disconnectTimer = null;
 // Module-level guard to prevent overlapping print jobs (especially from iOS double-tap)
 let printInProgress = false;
 
-/**
- * Detect iOS (iPhone/iPad/iPod) where CoreBluetooth's writeWithoutResponse
- * can buffer-and-replay partial BLE writes, causing ~1.5x printed output.
- */
-function isIOS() {
-  if (typeof navigator === 'undefined') return false;
-  const ua = navigator.userAgent || '';
-  return /iPhone|iPad|iPod/i.test(ua) ||
-    (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
-}
-
 async function writePrinterBytes(characteristic, bytes, chunkSize = 120) {
   const ios = isIOS();
   const canWrite = !!characteristic.properties.write;
@@ -417,15 +445,17 @@ async function writePrinterBytes(characteristic, bytes, chunkSize = 120) {
     throw new Error('Printer characteristic is not writable.');
   }
 
-  // iPhone (Bluefy): writeWithoutResponse queues in CoreBluetooth and can replay
-  // chunks after the app thinks the job finished, causing non-stop printing.
   let writeWithoutResponse = false;
   let write;
-  if (ios && canWrite) {
-    write = (chunk) => characteristic.writeValue(chunk);
-  } else if (ios && canWriteWithoutResponse) {
-    write = (chunk) => characteristic.writeValueWithoutResponse(chunk);
-    writeWithoutResponse = true;
+  if (ios) {
+    // Prefer writeWithoutResponse (same as working Android). writeValue waits
+    // for an ACK these printers never send, so CoreBluetooth retransmits.
+    if (canWriteWithoutResponse) {
+      write = (chunk) => characteristic.writeValueWithoutResponse(chunk);
+      writeWithoutResponse = true;
+    } else {
+      write = (chunk) => characteristic.writeValue(chunk);
+    }
   } else if (canWriteWithoutResponse) {
     write = (chunk) => characteristic.writeValueWithoutResponse(chunk);
     writeWithoutResponse = true;
@@ -433,13 +463,8 @@ async function writePrinterBytes(characteristic, bytes, chunkSize = 120) {
     write = (chunk) => characteristic.writeValue(chunk);
   }
 
-  let effectiveChunk = chunkSize;
-  if (ios) {
-    effectiveChunk = Math.min(chunkSize, writeWithoutResponse ? 10 : 20);
-  }
-  const delayMs = ios
-    ? (writeWithoutResponse ? 50 : 35)
-    : (writeWithoutResponse ? 6 : 0);
+  let effectiveChunk = ios ? 20 : chunkSize;
+  const delayMs = ios ? 40 : (writeWithoutResponse ? 6 : 0);
 
   for (let offset = 0; offset < bytes.length;) {
     const end = Math.min(offset + effectiveChunk, bytes.length);
@@ -451,9 +476,22 @@ async function writePrinterBytes(characteristic, bytes, chunkSize = 120) {
         await new Promise((resolve) => setTimeout(resolve, delayMs));
       }
     } catch (err) {
+      if (ios) {
+        try {
+          await write(new Uint8Array([0x1B, 0x40]));
+        } catch {
+          // ignore
+        }
+        try {
+          characteristic.service?.device?.gatt?.disconnect();
+        } catch {
+          // ignore
+        }
+        throw err;
+      }
       if (effectiveChunk <= 10) throw err;
-      effectiveChunk = ios ? 10 : 20;
-      await new Promise((resolve) => setTimeout(resolve, ios ? 40 : 15));
+      effectiveChunk = 20;
+      await new Promise((resolve) => setTimeout(resolve, 15));
     }
   }
 }
@@ -646,12 +684,13 @@ export async function printQrLabelViaBluetooth({ sku, name, category, size, colo
   }
 
   const copyCount = Math.max(1, parseInt(copies, 10) || 1);
-
-  // 1. Get or prompt for printer device
-  const { device, server } = await getOrSelectPrinter(forceSelect);
+  let device = null;
 
   try {
-    // 2. Find writable characteristic
+    const selected = await getOrSelectPrinter(forceSelect);
+    device = selected.device;
+    const { server } = selected;
+
     let targetChar = null;
     const services = await server.getPrimaryServices();
 
@@ -674,10 +713,6 @@ export async function printQrLabelViaBluetooth({ sku, name, category, size, colo
       throw new Error('No writable printing characteristic found on printer.');
     }
 
-    // 3. Build label as two separate payloads: raster (large ~9.6KB) and gap (tiny ~4B)
-    //    Sending them separately with a pause prevents iOS BLE chunk re-transmissions
-    //    from desynchronising the printer's byte parser after the raster block, which
-    //    was causing ~1.5x printed output on iPhone (Bluefy).
     const { raster, gap } = await buildSingleLabelParts({ sku, name, category, size, color, qrImage });
     const rasterBytes = new Uint8Array(raster);
     const gapBytes = new Uint8Array(gap);
@@ -686,10 +721,8 @@ export async function printQrLabelViaBluetooth({ sku, name, category, size, colo
     const rasterPauseMs = ios ? 450 : 150;
     const betweenCopyMs = ios ? 500 : 350;
 
-    // 4. Send each copy: raster → pause → gap
     for (let i = 0; i < copyCount; i++) {
       await writePrinterBytes(targetChar, rasterBytes, ios ? 20 : 100);
-      // Let the printer fully consume the raster before sending feed commands.
       await new Promise((resolve) => setTimeout(resolve, rasterPauseMs));
       await writePrinterBytes(targetChar, gapBytes, ios ? 20 : 100);
       if (i < copyCount - 1) {
@@ -697,11 +730,6 @@ export async function printQrLabelViaBluetooth({ sku, name, category, size, colo
       }
     }
 
-    if (ios) {
-      await new Promise((resolve) => setTimeout(resolve, 400));
-    }
-
-    // Update saved name on successful print
     if (device.id) {
       try {
         localStorage.setItem(LAST_PRINTER_KEY, device.id);
@@ -716,44 +744,57 @@ export async function printQrLabelViaBluetooth({ sku, name, category, size, colo
     return true;
   } finally {
     printInProgress = false;
-    // iOS: disconnect soon after acknowledged writes so the stack cannot keep flushing
-    // queued BLE packets to the printer (runaway reprints / endless feed).
-    const ios = isIOS();
-    const disconnectDelay = ios
-      ? Math.max(1500, copyCount * 900 + 800)
-      : Math.max(3000, copyCount * 1800 + 1500);
-    disconnectTimer = setTimeout(() => {
-      try {
-        if (device.gatt && device.gatt.connected) {
-          device.gatt.disconnect();
+    if (device) {
+      const ios = isIOS();
+      const disconnectDelay = ios
+        ? 400
+        : Math.max(3000, copyCount * 1800 + 1500);
+      disconnectTimer = setTimeout(() => {
+        try {
+          if (device.gatt && device.gatt.connected) {
+            device.gatt.disconnect();
+          }
+        } catch {
+          // ignore
         }
-      } catch {
-        // ignore
-      }
-      disconnectTimer = null;
-    }, disconnectDelay);
+        disconnectTimer = null;
+      }, disconnectDelay);
+    }
   }
 }
 
 function buildBlankRasterLabelEscPos(gapDots = 22) {
+  const ios = isIOS();
   const widthBytes = 48; // 384 dots width
   const height = 200;    // 200 dots height (exact 25mm label)
   const header = [
     0x1B, 0x40,        // initialize
     0x1B, 0x61, 0x01,  // center
-    0x1D, 0x76, 0x30, 0x00, 48, 0, 200, 0 // GS v 0 0: 48 bytes wide, 200 rows tall
   ];
+
+  if (ios) {
+    const parts = [...header];
+    for (let y = 0; y < height; y += IOS_BAND_ROWS) {
+      const rows = Math.min(IOS_BAND_ROWS, height - y);
+      parts.push(0x1D, 0x76, 0x30, 0x00, widthBytes, 0, rows, 0);
+      for (let i = 0; i < widthBytes * rows; i++) parts.push(0);
+    }
+    parts.push(0x1B, 0x4A, gapDots, 0x1B, 0x40, ...IOS_NUL_TAIL);
+    return new Uint8Array(parts);
+  }
+
+  const rasterHeader = [0x1D, 0x76, 0x30, 0x00, 48, 0, 200, 0];
   const footer = [
     0x1B, 0x33, gapDots, // ESC 3 gapDots
     0x0A,               // LF
     0x1B, 0x32          // ESC 2 reset
   ];
 
-  const totalLen = header.length + (widthBytes * height) + footer.length;
+  const totalLen = header.length + rasterHeader.length + (widthBytes * height) + footer.length;
   const payload = new Uint8Array(totalLen);
   payload.set(header, 0);
-  // 9,600 bytes in the middle are automatically 0x00 (pure white pixels, zero ink)
-  payload.set(footer, header.length + (widthBytes * height));
+  payload.set(rasterHeader, header.length);
+  payload.set(footer, header.length + rasterHeader.length + (widthBytes * height));
   return payload;
 }
 
@@ -815,7 +856,10 @@ export async function testBlankFeedViaBluetooth({ copies = 1, gapDots = 22, forc
 
     return true;
   } finally {
-    const disconnectDelay = Math.max(3000, copyCount * 1200 + 1500);
+    const ios = isIOS();
+    const disconnectDelay = ios
+      ? 400
+      : Math.max(3000, copyCount * 1200 + 1500);
     disconnectTimer = setTimeout(() => {
       try {
         if (device.gatt && device.gatt.connected) {
