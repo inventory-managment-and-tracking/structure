@@ -383,14 +383,39 @@ export async function labelToEscPos({ sku, name, category, size, color, qrImage,
 // Module-level timer to prevent rapid re-clicks from severing connections
 let disconnectTimer = null;
 
+// Module-level guard to prevent overlapping print jobs (especially from iOS double-tap)
+let printInProgress = false;
+
+/**
+ * Detect iOS (iPhone/iPad/iPod) where CoreBluetooth's writeWithoutResponse
+ * can buffer-and-replay partial BLE writes, causing ~1.5x printed output.
+ */
+function isIOS() {
+  if (typeof navigator === 'undefined') return false;
+  const ua = navigator.userAgent || '';
+  return /iPhone|iPad|iPod/i.test(ua) ||
+    (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+}
+
 async function writePrinterBytes(characteristic, bytes, chunkSize = 120) {
-  const canWriteWithoutResponse = !!characteristic.properties.writeWithoutResponse;
+  const ios = isIOS();
+
+  // On iOS: ALWAYS use writeValue (with-response) to prevent CoreBluetooth
+  // buffer replay that causes double/1.5x printing. Also use smaller chunks.
+  const canWriteWithoutResponse = !ios && !!characteristic.properties.writeWithoutResponse;
   const write = canWriteWithoutResponse
     ? (chunk) => characteristic.writeValueWithoutResponse(chunk)
     : (chunk) => characteristic.writeValue(chunk);
 
-  // 6ms delay gives the thermal capacitor time to recharge between bursts for jet-black burn
-  const delayMs = canWriteWithoutResponse ? 6 : 0;
+  // iOS needs longer delays to let CoreBluetooth fully flush each write.
+  // writeWithoutResponse (non-iOS) needs a small recharge delay.
+  // writeValue (with-response) blocks until acknowledged, so no extra delay needed on non-iOS.
+  const delayMs = ios ? 25 : (canWriteWithoutResponse ? 6 : 0);
+
+  // Smaller chunks on iOS to stay within CoreBluetooth's optimal MTU window
+  if (ios && chunkSize > 80) {
+    chunkSize = 80;
+  }
 
   for (let offset = 0; offset < bytes.length;) {
     const end = Math.min(offset + chunkSize, bytes.length);
@@ -404,7 +429,7 @@ async function writePrinterBytes(characteristic, bytes, chunkSize = 120) {
     } catch (err) {
       if (chunkSize <= 20) throw err;
       chunkSize = 20;
-      await new Promise((resolve) => setTimeout(resolve, 15));
+      await new Promise((resolve) => setTimeout(resolve, ios ? 40 : 15));
     }
   }
 }
@@ -583,6 +608,13 @@ export async function printQrLabelViaBluetooth({ sku, name, category, size, colo
     throw new Error('Web Bluetooth is not supported on this browser. Please use Chrome, Edge, or Samsung Internet on Android/PC.');
   }
 
+  // Guard: prevent overlapping print jobs (iOS touch events can double-fire)
+  if (printInProgress) {
+    console.warn('Print already in progress, ignoring duplicate call');
+    return true;
+  }
+  printInProgress = true;
+
   // Cancel any pending disconnect from a previous print
   if (disconnectTimer) {
     clearTimeout(disconnectTimer);
@@ -645,6 +677,7 @@ export async function printQrLabelViaBluetooth({ sku, name, category, size, colo
 
     return true;
   } finally {
+    printInProgress = false;
     // Dynamic disconnect: scale delay based on number of copies so motor finishes completely
     const disconnectDelay = Math.max(3000, copyCount * 1800 + 1500);
     disconnectTimer = setTimeout(() => {
