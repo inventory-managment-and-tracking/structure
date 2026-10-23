@@ -468,13 +468,14 @@ async function writePrinterBytes(characteristic, bytes, chunkSize = 120) {
   // OS to *re-send the whole characteristic write*, which can duplicate
   // the raster data and cause an endless print loop.
   // -----------------------------------------------------------------
-  // - Use a tiny chunk size (<= 10 bytes) on iOS to minimise the amount
-  //   of data that may be retransmitted.
+  // - Use a moderate chunk size (~50 bytes) on iOS to minimise the amount
+  //   of data that may be retransmitted while keeping throughput reasonable.
+  //   10 bytes was too slow (~84s per label); 50 bytes finishes in ~4s.
   // - Insert a short pause after each chunk to give the printer time
   //   to process it before the next packet arrives.
   // - Fall back to the original `chunkSize` on non-iOS platforms.
-  let effectiveChunk = ios ? Math.min(10, chunkSize) : chunkSize;
-  const delayMs = ios ? 60 : (writeWithoutResponse ? 6 : 0);
+  let effectiveChunk = ios ? Math.min(50, chunkSize) : chunkSize;
+  const delayMs = ios ? 15 : (writeWithoutResponse ? 6 : 0);
 
   for (let offset = 0; offset < bytes.length;) {
     const end = Math.min(offset + effectiveChunk, bytes.length);
@@ -732,13 +733,13 @@ export async function printQrLabelViaBluetooth({ sku, name, category, size, colo
     const gapBytes = new Uint8Array(gap);
 
     const ios = isIOS();
-    const rasterPauseMs = ios ? 450 : 150;
+    const rasterPauseMs = ios ? 200 : 150;
     const betweenCopyMs = ios ? 500 : 350;
 
     for (let i = 0; i < copyCount; i++) {
-      await writePrinterBytes(targetChar, rasterBytes, ios ? 20 : 100);
+      await writePrinterBytes(targetChar, rasterBytes, ios ? 50 : 100);
       await new Promise((resolve) => setTimeout(resolve, rasterPauseMs));
-      await writePrinterBytes(targetChar, gapBytes, ios ? 20 : 100);
+      await writePrinterBytes(targetChar, gapBytes, ios ? 50 : 100);
       // If iOS requested a forced single copy, stop after the first iteration
       if (ios && forceSingleCopy) break;
       if (i < copyCount - 1) {
@@ -763,7 +764,7 @@ export async function printQrLabelViaBluetooth({ sku, name, category, size, colo
     if (device) {
       const ios = isIOS();
       const disconnectDelay = ios
-        ? 400
+        ? 2500
         : Math.max(3000, copyCount * 1800 + 1500);
       disconnectTimer = setTimeout(() => {
         try {
@@ -874,7 +875,7 @@ export async function testBlankFeedViaBluetooth({ copies = 1, gapDots = 22, forc
   } finally {
     const ios = isIOS();
     const disconnectDelay = ios
-      ? 400
+      ? 2500
       : Math.max(3000, copyCount * 1200 + 1500);
     disconnectTimer = setTimeout(() => {
       try {
